@@ -1,0 +1,5 @@
+Case_inputs:
+  CaseA_path: IOfiles/CaseA
+  CaseA_format: PandaPower
+  CaseB_path: IOfiles/CaseB
+  CaseB_format: PandaPower
