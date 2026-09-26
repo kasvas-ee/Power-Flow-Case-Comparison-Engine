@@ -10,6 +10,7 @@ def import_and_convert(config):
     """
     Calls the appropriate adapter based on the data format
     to convert to the canonical format and export to the output path
+    return case A and case B in canonical format
     """
     parsers = {
         "matpower": mp_to_canonical,
@@ -23,6 +24,7 @@ def import_and_convert(config):
     (config.output_path / "converted_data").mkdir(exist_ok=True)
 
     cases = {"case_a":[config.case_a_format, config.case_a_path], "case_b":[config.case_b_format, config.case_b_path]}
+    converted_cases = ()
     for case_title, case_details in cases.items():
         parser_class = parsers.get(case_details[0])
         if parser_class is None:
@@ -33,6 +35,8 @@ def import_and_convert(config):
         output_path.mkdir(exist_ok=True)
 
         # Convert the data
-        parser_class(case_details[1], output_path)
+        converted_cases += (parser_class(case_details[1], output_path),)
 
-        logger.info("Read data for {}".format(case_title))
+        logger.info("Read & converted data for {}".format(case_title))
+
+    return converted_cases

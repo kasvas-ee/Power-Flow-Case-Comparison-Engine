@@ -15,7 +15,7 @@ if __name__ == "__main__":
     config = process_config(settings_file)
 
     # Read Cases A & B -> Canonical format
-    import_and_convert(config)
+    case_a, case_b = import_and_convert(config)
 
     # TODO: Pre-check cases A & B
 
