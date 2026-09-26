@@ -4,6 +4,7 @@
 
 from src.logging_config import logger, setup_logging
 from src.settings_config import process_config
+from src.importers.importer import import_and_convert
 
 if __name__ == "__main__":
     setup_logging()
@@ -13,7 +14,8 @@ if __name__ == "__main__":
     # Read user-defined settings
     config = process_config(settings_file)
 
-    # TODO: Read Cases A & B -> Canonical format
+    # Read Cases A & B -> Canonical format
+    import_and_convert(config)
 
     # TODO: Pre-check cases A & B
 
