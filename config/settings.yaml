@@ -1,5 +1,6 @@
 Case_inputs:
-  CaseA_path: IOfiles/CaseA
+  CaseA_path: IOfiles/caseA.json
   CaseA_format: PandaPower
-  CaseB_path: IOfiles/CaseB
+  CaseB_path: IOfiles/caseB.json
   CaseB_format: PandaPower
+  Output_path: IOfiles/Output

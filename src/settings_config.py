@@ -52,6 +52,7 @@ class Config:
         self.case_a_format = check_for_error(config_dict, "Case_inputs", "CaseA_format", expected_type=str).lower()
         self.case_b_path = root_dir / check_for_error(config_dict, "Case_inputs", "CaseB_path", expected_type=str)
         self.case_b_format = check_for_error(config_dict, "Case_inputs", "CaseB_format", expected_type=str).lower()
+        self.output_path = root_dir / check_for_error(config_dict, "Case_inputs", "Output_path", expected_type=str)
 
 def process_config(config_file: str):
     """
@@ -65,6 +66,9 @@ def process_config(config_file: str):
             config_dict = yaml.safe_load(f)
 
         config_obj = Config(config_dict=config_dict, root_dir=root_dir)
+
+        # Create the output folder
+        config_obj.output_path.mkdir(exist_ok=True)
 
         return config_obj
     except Exception as e:
