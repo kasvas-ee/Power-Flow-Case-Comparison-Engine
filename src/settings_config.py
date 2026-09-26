@@ -1,6 +1,6 @@
 import yaml
 from pathlib import Path
-from dataclasses import dataclass, InitVar, fields
+from dataclasses import dataclass, InitVar
 from src.logging_config import logger
 
 
@@ -48,11 +48,13 @@ class Config:
         """
         Transfer the settings from dict into this object
         """
-        self.case_a_path = root_dir / check_for_error(config_dict, "Case_inputs", "CaseA_path", expected_type=str)
-        self.case_a_format = check_for_error(config_dict, "Case_inputs", "CaseA_format", expected_type=str).lower()
-        self.case_b_path = root_dir / check_for_error(config_dict, "Case_inputs", "CaseB_path", expected_type=str)
-        self.case_b_format = check_for_error(config_dict, "Case_inputs", "CaseB_format", expected_type=str).lower()
-        self.output_path = root_dir / check_for_error(config_dict, "Case_inputs", "Output_path", expected_type=str)
+        self.case_a_path = root_dir / check_for_error(config_dict, "Case_IO", "CaseA_path", expected_type=str)
+        self.case_a_format = check_for_error(config_dict, "Case_IO", "CaseA_format", expected_type=str).lower()
+        self.case_b_path = root_dir / check_for_error(config_dict, "Case_IO", "CaseB_path", expected_type=str)
+        self.case_b_format = check_for_error(config_dict, "Case_IO", "CaseB_format", expected_type=str).lower()
+        self.output_path = root_dir / check_for_error(config_dict, "Case_IO", "Output_path", expected_type=str)
+
+        self.export_net = check_for_error(config_dict, "Preferences", "export_canonical_format", expected_type=bool)
 
 def process_config(config_file: str):
     """

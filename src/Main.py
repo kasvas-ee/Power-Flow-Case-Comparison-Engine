@@ -4,7 +4,8 @@
 
 from src.logging_config import logger, setup_logging
 from src.settings_config import process_config
-from src.importers.importer import import_and_convert
+from src.parsers.parser import import_and_convert
+from src.comparators.model_checker import match_model
 
 if __name__ == "__main__":
     setup_logging()
@@ -17,11 +18,10 @@ if __name__ == "__main__":
     # Read Cases A & B -> Canonical format
     case_a, case_b = import_and_convert(config)
 
-    # TODO: Pre-check cases A & B
+    # TODO: Pre-check: Match model (topology and input parameters)
+    match_model(config, case_a, case_b)
 
-    # TODO: Match Topology
-
-    # TODO: Match powerflow results
+    # TODO: Match state (powerflow)
 
     # TODO: Generate Statistics
 
