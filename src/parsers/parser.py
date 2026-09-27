@@ -1,8 +1,8 @@
-from src.importers.matpower import mp_to_canonical
-from src.importers.pandapower import pp_to_canonical
-from src.importers.powsybl import ppsb_to_canonical
-from src.importers.psse import psse_to_canonical
-from src.importers.pypsa import pypsa_to_canonical
+from src.parsers.matpower import mp_to_canonical
+from src.parsers.pandapower import pp_to_canonical
+from src.parsers.powsybl import ppsb_to_canonical
+from src.parsers.psse import psse_to_canonical
+from src.parsers.pypsa import pypsa_to_canonical
 from src.logging_config import logger
 
 
@@ -35,7 +35,7 @@ def import_and_convert(config):
         output_path.mkdir(exist_ok=True)
 
         # Convert the data
-        converted_cases += (parser_class(case_details[1], output_path),)
+        converted_cases += (parser_class(case_details[1], output_path, config.export_net),)
 
         logger.info("Read & converted data for {}".format(case_title))
 
