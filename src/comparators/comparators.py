@@ -1,5 +1,86 @@
 import numpy as np
+from scipy.sparse import issparse
 from src.logging_config import logger
+
+
+def compare_ybus(Ybus_a, Ybus_b, tol=1e-9):
+    """
+    Compare two Ybus matrices from pandapower.
+
+    Parameters
+    ----------
+    Ybus_a, Ybus_b : np.ndarray or scipy.sparse matrix
+        Bus admittance matrices to compare.
+    tol : float
+        Numerical tolerance for impedance mismatch.
+
+    Returns
+    -------
+    dict
+        Summary of mismatches:
+        {
+            "topology_match": bool,
+            "impedance_match": bool,
+            "pattern_diff_count": int,
+            "value_diff_count": int,
+            "max_value_diff": float
+        }
+    """
+
+    logger.info("Starting Ybus comparison")
+
+    # Convert sparse to dense for comparison
+    if issparse(Ybus_a):
+        Ybus_a = Ybus_a.toarray()
+    if issparse(Ybus_b):
+        Ybus_b = Ybus_b.toarray()
+
+    bus_count_match = Ybus_a.shape == Ybus_b.shape
+    # Check shape
+    if not bus_count_match:
+        logger.error(f"Shape mismatch: A={Ybus_a.shape}, B={Ybus_b.shape}")
+        return {
+            "bus_count_match":False,
+            "topology_match": False,
+            "impedance_match": False,
+            "pattern_diff_count": None,
+            "value_diff_count": None,
+            "max_value_diff": None
+        }
+
+    # Sparsity pattern (nonzero locations)
+    pattern_a = (np.abs(Ybus_a) > tol)
+    pattern_b = (np.abs(Ybus_b) > tol)
+    pattern_diff = np.logical_xor(pattern_a, pattern_b)
+    pattern_diff_count = np.sum(pattern_diff)
+
+    topology_match = pattern_diff_count == 0
+    if topology_match:
+        logger.info("Topology (sparsity pattern) matches")
+    else:
+        logger.warning(f"Topology mismatch: {pattern_diff_count} entries differ")
+
+    # Value comparison
+    value_diff = np.abs(Ybus_a - Ybus_b)
+    value_diff_mask = value_diff > tol
+    value_diff_count = np.sum(value_diff_mask)
+    max_value_diff = np.max(value_diff) if value_diff_count > 0 else 0.0
+
+    impedance_match = value_diff_count == 0
+    if impedance_match:
+        logger.info("Impedance values match within tolerance")
+    else:
+        logger.warning(f"Impedance mismatch: {value_diff_count} entries differ, "
+                       f"max difference = {max_value_diff}")
+
+    return {
+        "bus_count_match": bus_count_match,
+        "topology_match": topology_match,
+        "impedance_match": impedance_match,
+        "pattern_diff_count": int(pattern_diff_count),
+        "value_diff_count": int(value_diff_count),
+        "max_value_diff": float(max_value_diff)
+    }
 
 
 def compare_np(np_a, np_b, filename, tol=0, check_row_size=False, check_col_size=False,
@@ -51,3 +132,4 @@ def compare_np(np_a, np_b, filename, tol=0, check_row_size=False, check_col_size
     if match:
         logger.info(f"{filename} is a good match")
     return match
+

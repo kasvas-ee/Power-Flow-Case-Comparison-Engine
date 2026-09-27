@@ -18,8 +18,10 @@ if __name__ == "__main__":
     # Read Cases A & B -> Canonical format
     case_a, case_b = import_and_convert(config)
 
-    # TODO: Pre-check: Match model (topology and input parameters)
-    match_model(config, case_a, case_b)
+    # Pre-check: Match model (topology and input parameters)
+    is_match = match_model(config, case_a, case_b)
+    if config.abort_if_network_mismatch and not is_match:
+        raise ReferenceError("Network model is not identical. Aborting the comparison.")
 
     # TODO: Match state (powerflow)
 

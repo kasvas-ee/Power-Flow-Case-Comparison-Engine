@@ -56,6 +56,11 @@ class Config:
 
         self.export_net = check_for_error(config_dict, "Preferences", "export_canonical_format", expected_type=bool)
 
+        # Termination clauses
+        self.abort_if_network_mismatch = check_for_error(config_dict, "Termination_clauses", "abort_if_network_mismatch", expected_type=bool)
+        self.abort_at_first_mismatch = check_for_error(config_dict, "Termination_clauses", "abort_at_first_mismatch", expected_type=bool)
+
+
 def process_config(config_file: str):
     """
     Read the settings.yaml file
