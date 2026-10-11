@@ -1,29 +1,29 @@
 Case_IO:
-  CaseA_path: IOfiles/IEEE13/case_A.json
-  CaseA_format: PandaPower
-  CaseB_path: IOfiles/IEEE13/case_B.mat
-  CaseB_format: MATPOWER
-  Output_path: IOfiles/IEEE13/Output
+  CaseA_path: IOfiles/IEEE14bus/Inputs/case_A.mat
+  CaseA_format: MATPOWER
+  CaseB_path: IOfiles/IEEE14bus/Inputs/case_B.json
+  CaseB_format: PandaPower
+  Output_path: IOfiles/IEEE14bus/Outputs
 
-Tolerances:
-  network:
-    r_pu: 1e-6
-    x_pu: 1e-6
-    b_pu: 1e-6
-    p_mw: 1e-6
-    q_mvar: 1e-6
-  op_state:
-    v_mag_pu: 1e-6
-    v_ang: 1e-6
-    p_mw: 1e-6
-    q_mvar: 1e-6
-    s_mva: 1e-6
+Report:
+  top_n_severe: 5
 
 Preferences:
-  export_canonical_format: False
+  export_canonical_format: True
+  report_all_mismatches: False
+  generate_side-by-side_comparator: True
   enable_multithreading: True
   enable_multiprocessing: True
 
 Termination_clauses:
   abort_if_network_mismatch: True
   abort_at_first_mismatch: False
+
+# Optional, fully local open-weight AI diagnostic report.
+# Start a local vLLM server before enabling this setting.
+AI_Insights:
+  enabled: False
+  base_url: "http://localhost:8000/v1"
+  model: "Qwen/Qwen3-14B"
+  timeout_seconds: 180
+  max_tokens: 2200
