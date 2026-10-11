@@ -1,7 +1,8 @@
 import yaml
 from pathlib import Path
+import os
 from dataclasses import dataclass, InitVar
-from src.logging_config import logger
+from src.logger import logger
 
 
 def check_for_error(config, *keys, expected_type = None, allow_empty=False):
@@ -53,12 +54,56 @@ class Config:
         self.case_b_path = root_dir / check_for_error(config_dict, "Case_IO", "CaseB_path", expected_type=str)
         self.case_b_format = check_for_error(config_dict, "Case_IO", "CaseB_format", expected_type=str).lower()
         self.output_path = root_dir / check_for_error(config_dict, "Case_IO", "Output_path", expected_type=str)
-
         self.export_net = check_for_error(config_dict, "Preferences", "export_canonical_format", expected_type=bool)
+        self.generate_side_by_side_comparator = check_for_error(
+            config_dict, "Preferences", "generate_side-by-side_comparator", expected_type=bool
+        )
+
+        # Preferences
+        self.report_all_mismatches = check_for_error(config_dict, "Preferences", "report_all_mismatches", expected_type=bool)
+
+        if self.report_all_mismatches:
+            # Report
+            self.top_n_severe = 999999999
+        else:
+            # Report
+            self.top_n_severe = check_for_error(config_dict, "Report", "top_n_severe", expected_type=int)
 
         # Termination clauses
-        self.abort_if_network_mismatch = check_for_error(config_dict, "Termination_clauses", "abort_if_network_mismatch", expected_type=bool)
-        self.abort_at_first_mismatch = check_for_error(config_dict, "Termination_clauses", "abort_at_first_mismatch", expected_type=bool)
+        self.abort_if_network_mismatch = check_for_error(config_dict, "Termination_clauses",
+                                                         "abort_if_network_mismatch", expected_type=bool)
+        self.abort_at_first_mismatch = check_for_error(config_dict, "Termination_clauses", "abort_at_first_mismatch",
+                                                       expected_type=bool)
+
+        # Optional local-LLM insight report. No remote provider is required.
+        ai_settings = config_dict.get("AI_Insights", {}) or {}
+        self.generate_ai_insight_report = bool(ai_settings.get("enabled", False))
+        self.ai_insight_base_url = str(ai_settings.get("base_url", "http://localhost:8000/v1"))
+        self.ai_insight_model = str(ai_settings.get("model", "Qwen/Qwen3-14B"))
+        self.ai_insight_timeout_seconds = float(ai_settings.get("timeout_seconds", 180))
+        self.ai_insight_max_tokens = int(ai_settings.get("max_tokens", 2200))
+
+    def validate_config(self):
+        valid_formats = ["matpower", "pandapower"]
+        if self.case_a_format not in valid_formats:
+            msg = "Case A has invalid format."
+            logger.error(msg)
+            raise IOError(msg)
+
+        if self.case_b_format not in valid_formats:
+            msg = "Case B has invalid format."
+            logger.error(msg)
+            raise IOError(msg)
+
+        if not os.path.exists(self.case_a_path):
+            msg = "Case A path is invalid."
+            logger.error(msg)
+            raise IOError(msg)
+
+        if not os.path.exists(self.case_b_path):
+            msg = "Case B path is invalid."
+            logger.error(msg)
+            raise IOError(msg)
 
 
 def process_config(config_file: str):
@@ -73,6 +118,7 @@ def process_config(config_file: str):
             config_dict = yaml.safe_load(f)
 
         config_obj = Config(config_dict=config_dict, root_dir=root_dir)
+        config_obj.validate_config()
 
         # Create the output folder
         config_obj.output_path.mkdir(exist_ok=True)

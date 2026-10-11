@@ -2,31 +2,184 @@
 # THE MAIN FUNCTION TO RUN THE ENTIRE APPLICATION
 # ###################################################
 
-from src.logging_config import logger, setup_logging
-from src.settings_config import process_config
-from src.parsers.parser import import_and_convert
-from src.comparators.model_checker import match_model
+from src.logger import logger, setup_logging
+from src.config import process_config
+from src.canonicalization.parser import canonicalize_cases
+from src.comparison.model_checker import (
+    match_model,
+    validate_model_comparison,
+    determine_results_comparability,
+    determine_model_match
+)
+from src.comparison.result_checker import run_power_flow_comparison
+from src.comparison.result_structures import ValidationResult, build_report
+from src.comparison.result_checker import results_match_from_metadata
+from src.insights.comparison_summary_insights import generate_insights, generate_investigation_priorities
+from src.insights.statistical_insights import generate_statistical_insights
+from src.reporting.report import write_reports
 
-if __name__ == "__main__":
+
+class CaseDiffEngine:
+
+    def __init__(self, config):
+        self.config = config
+
+    def compare(self):
+        """
+        Orchistrator
+        """
+
+        # -----------------------------------------------------
+        # 1. Read Cases A & B -> Canonical format
+        # -----------------------------------------------------
+
+        canonical_cases = canonicalize_cases(self.config)
+        self.canonical_cases = canonical_cases
+
+        # -----------------------------------------------------
+        # 2. Compare network/model
+        # -----------------------------------------------------
+
+        ppcs, ybus, ybus_comparison, model_comparison = (
+            match_model(*canonical_cases, config=self.config)
+        )
+
+        # -----------------------------------------------------
+        # 3. Determine whether results can be compared
+        # -----------------------------------------------------
+
+        results_comparability = determine_results_comparability(ybus_comparison, model_comparison)
+
+        # -----------------------------------------------------
+        # 4. Validate model comparison
+        # -----------------------------------------------------
+
+        validation = validate_model_comparison(
+            model_comparison,
+            ybus_comparison,
+            results_comparability,
+        )
+
+        if not validation.is_valid:
+            return build_report(
+                ppcs=ppcs,
+                ybus=ybus,
+                ybus_comparison=ybus_comparison,
+                model_comparison=model_comparison,
+                model_match=False,
+                results_comparable=results_comparability,
+                results_match=None,
+                validation=validation,
+            )
+
+        # -----------------------------------------------------
+        # 5. Compare solved power-flow states
+        # -----------------------------------------------------
+
+        power_flow_action = run_power_flow_comparison(
+            *canonical_cases,
+            self.config,
+        )
+
+        if not power_flow_action.success:
+            validation = ValidationResult(
+                is_valid=False,
+                reason=(
+                    "Power-flow comparison failed: "
+                    f"{power_flow_action.error_reason}"
+                ),
+            )
+
+            return build_report(
+                ppcs=ppcs,
+                ybus=ybus,
+                ybus_comparison=ybus_comparison,
+                model_comparison=model_comparison,
+                model_match=False,
+                results_comparable=results_comparability,
+                results_match=None,
+                validation=validation,
+            )
+
+        power_flow_comparison = power_flow_action.result
+
+        # -----------------------------------------------------
+        # 6. Determine overall result match
+        # -----------------------------------------------------
+
+        results_match = results_match_from_metadata(
+            power_flow_comparison.metadata_comparisons
+        )
+
+        # Generate Insights
+        insights = generate_insights(
+            ybus_comparison=ybus_comparison,
+            model_comparison=model_comparison,
+            power_flow_comparison=power_flow_comparison,
+            model_match=determine_model_match(ybus_comparison, model_comparison),
+            results_comparable=results_comparability,
+            results_match=results_match,
+        )
+
+        statistical_insights = generate_statistical_insights(
+            model_comparison=model_comparison,
+            power_flow_comparison=power_flow_comparison,
+            results_comparable=results_comparability.is_valid,
+        )
+
+        investigation_priorities = generate_investigation_priorities(
+            power_flow_comparison=power_flow_comparison,
+            model_comparison=model_comparison,
+            model_match=determine_model_match(ybus_comparison, model_comparison),
+            statistical_insights=statistical_insights,
+        )
+
+        #
+        # # TODO: Export / Visualize insights
+        # visual_insights = generate_insights()
+
+        # -----------------------------------------------------
+        # 7. Build final report
+        # -----------------------------------------------------
+
+        return build_report(
+            ppcs=ppcs,
+            ybus=ybus,
+            ybus_comparison=ybus_comparison,
+            model_comparison=model_comparison,
+            model_match=determine_model_match(ybus_comparison, model_comparison),
+            results_comparable=results_comparability,
+            results_match=results_match,
+            validation=validation,
+            power_flow_comparison=power_flow_comparison,
+            insights=insights,
+            statistical_insights=statistical_insights,
+            investigation_priorities=investigation_priorities
+        )
+
+
+def main(config_file):
+    """
+    Application entry point
+    """
+    # Setup logger
     setup_logging()
     logger.info("Application started")
 
-    settings_file = "./config/settings.yaml"
     # Read user-defined settings
-    config = process_config(settings_file)
+    config = process_config(config_file)
 
-    # Read Cases A & B -> Canonical format
-    case_a, case_b = import_and_convert(config)
+    # Setup object for comparison engine
+    engine = CaseDiffEngine(config)
 
-    # Pre-check: Match model (topology and input parameters)
-    is_match = match_model(config, case_a, case_b)
-    if config.abort_if_network_mismatch and not is_match:
-        raise ReferenceError("Network model is not identical. Aborting the comparison.")
+    report = engine.compare()
 
-    # TODO: Match state (powerflow)
-
-    # TODO: Generate Statistics
-
-    # TODO: Export / Visualize insights
+    write_reports(config, engine, report)
 
     logger.info("Application completed")
+    return report
+
+
+if __name__ == "__main__":
+    settings_file = "./config/settings.yaml"
+    result = main(settings_file)

@@ -1,12 +1,12 @@
-from src.parsers.matpower import mp_to_canonical
-from src.parsers.pandapower import pp_to_canonical
-from src.parsers.powsybl import ppsb_to_canonical
-from src.parsers.psse import psse_to_canonical
-from src.parsers.pypsa import pypsa_to_canonical
-from src.logging_config import logger
+from src.canonicalization.matpower import mp_to_canonical
+from src.canonicalization.pandapower import pp_to_canonical
+from src.canonicalization.powsybl import ppsb_to_canonical
+from src.canonicalization.psse import psse_to_canonical
+from src.canonicalization.pypsa import pypsa_to_canonical
+from src.logger import logger
 
 
-def import_and_convert(config):
+def canonicalize_cases(config):
     """
     Calls the appropriate adapter based on the data format
     to convert to the canonical format and export to the output path
@@ -36,6 +36,8 @@ def import_and_convert(config):
 
         # Convert the data
         converted_cases += (parser_class(case_details[1], output_path, config.export_net),)
+
+        # TODO: Handle topological differences. A fixed 1-to-1 asset map is assumed for now.
 
         logger.info("Read & converted data for {}".format(case_title))
 

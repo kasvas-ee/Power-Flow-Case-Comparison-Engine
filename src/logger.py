@@ -9,8 +9,9 @@ def setup_logging():
     """
     One-time setup of the logging function
     """
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
+    project_root = Path(__file__).resolve().parent.parent
+    log_dir = project_root / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
     log_file = log_dir / f"run_{timestamp}.log"

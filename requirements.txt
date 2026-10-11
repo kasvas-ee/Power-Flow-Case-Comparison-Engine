@@ -15,3 +15,9 @@ pypower
 PyYAML == 6.0.3
 
 xlsxwriter == 3.2.9
+openpyxl == 3.1.5
+
+# Client for a self-hosted OpenAI-compatible inference endpoint.
+openai>=1.78.0,<3.0.0
+
+pytest == 8.3.0
