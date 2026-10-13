@@ -257,13 +257,21 @@ def state_summary_report(
             ("branch", "Branch"),
         ]
 
+        # Asset-level mismatch statistics from the state comparison.
+        asset_summary = getattr(
+            power_flow_comparison,
+            "asset_summaries",
+            {},
+        ) or {}
+
         for asset_key, asset_label in asset_groups:
             lines.extend(
                 format_metadata_asset_group(
                     grouped.get(asset_key, []),
                     asset_label,
-                    metric_name_keys=("parameter_id", "parameter_name", "display_name"),
+                    metric_name_keys=("parameter_name", "display_name", "parameter_id"),
                     top_severe=power_flow_comparison.top_severe,
+                    asset_summary=vars(asset_summary.get(asset_key))
                 )
             )
 

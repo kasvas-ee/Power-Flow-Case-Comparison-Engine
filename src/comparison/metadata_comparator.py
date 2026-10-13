@@ -13,94 +13,8 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 import pandas as pd
+from src.comparison.result_structures import MetricDefinition
 from src.logger import logger
-
-REQUIRED_COLUMNS = {
-    "scope", "source", "asset name", "asset ID", "parameter name",
-    "parameter ID", "enabled", "comparison", "tolerance",
-    "severe_threshold", "unit", "display_name",
-}
-VALID_SCOPES = {"model", "state"}
-VALID_COMPARISONS = {"exact", "absolute", "angle"}
-
-
-@dataclass(frozen=True)
-class MetricDefinition:
-    scope: str
-    source: str
-    asset_name: str
-    asset_id: str
-    parameter_name: str
-    parameter_id: str
-    enabled: bool
-    comparison: str
-    tolerance: float
-    severe_threshold: float | None
-    unit: str | None
-    display_name: str
-    match_strategy: str | None
-
-    @property
-    def is_derived(self) -> bool:
-        return self.source == "derived"
-
-
-def _parse_bool(value: Any) -> bool:
-    if isinstance(value, (bool, np.bool_)):
-        return bool(value)
-    text = str(value).strip().lower()
-    if text in {"true", "1", "yes", "y"}:
-        return True
-    if text in {"false", "0", "no", "n"}:
-        return False
-    raise ValueError(f"Invalid boolean value: {value!r}")
-
-
-def load_metric_definitions(path: str | Path) -> list[MetricDefinition]:
-    """Load and validate the CSV. Disabled rows are intentionally discarded."""
-    frame = pd.read_csv(path)
-    missing = REQUIRED_COLUMNS - set(frame.columns)
-    if missing:
-        raise ValueError(f"Metrics CSV is missing columns: {sorted(missing)}")
-    definitions: list[MetricDefinition] = []
-    for row_number, row in enumerate(frame.to_dict(orient="records"), start=2):
-        try:
-            enabled = _parse_bool(row["enabled"])
-            if not enabled:
-                continue
-            scope = str(row["scope"]).strip().lower()
-            source = str(row["source"]).strip().lower()
-            comparison = str(row["comparison"]).strip().lower()
-            tolerance = float(row["tolerance"])
-            severe = None if pd.isna(row["severe_threshold"]) else float(row["severe_threshold"])
-            if scope not in VALID_SCOPES:
-                raise ValueError(f"scope must be one of {sorted(VALID_SCOPES)}")
-            if comparison not in VALID_COMPARISONS:
-                raise ValueError(f"comparison must be one of {sorted(VALID_COMPARISONS)}")
-            if not np.isfinite(tolerance) or tolerance < 0:
-                raise ValueError("tolerance must be finite and non-negative")
-            if (
-                    (scope == "model" and severe is None) or
-                    (severe is not None and (not np.isfinite(severe) or severe < tolerance))
-            ):
-                # Force-correct rather than accepting contradictory thresholds.
-                severe = tolerance
-            definitions.append(MetricDefinition(
-                scope=scope, source=source,
-                asset_name=str(row["asset name"]).strip(),
-                asset_id=str(row["asset ID"]).strip(),
-                parameter_name=str(row["parameter name"]).strip(),
-                parameter_id=str(row["parameter ID"]).strip(),
-                enabled=True, comparison=comparison, tolerance=tolerance,
-                severe_threshold=severe,
-                unit=None if pd.isna(row["unit"]) else str(row["unit"]).strip(),
-                display_name=str(row["display_name"]).strip(),
-                match_strategy=(None if "match_strategy" not in row or pd.isna(row.get("match_strategy"))
-                                else str(row.get("match_strategy")).strip()),
-            ))
-        except Exception as exc:
-            raise ValueError(f"Invalid metrics CSV row {row_number}: {exc}") from exc
-    return definitions
 
 
 class FormulaError(ValueError):
@@ -109,7 +23,7 @@ class FormulaError(ValueError):
 
 class SafeFormula:
     """Restricted vectorized formula evaluator; never executes arbitrary Python."""
-    FUNCTIONS: dict[str, Callable[..., Any]] = {
+    FUNCTIONS = {
         "abs": np.abs,
         "sqrt": np.sqrt,
         "sum": np.sum,
@@ -154,7 +68,7 @@ class SafeFormula:
         raise FormulaError(f"Unsupported formula expression: {type(node).__name__}")
 
 
-def _delta(a: np.ndarray, b: np.ndarray, comparison: str) -> np.ndarray:
+def _delta(a, b, comparison):
     if comparison == "angle":
         return np.abs(((a - b + 180.0) % 360.0) - 180.0)
     if comparison == "absolute":
@@ -162,11 +76,7 @@ def _delta(a: np.ndarray, b: np.ndarray, comparison: str) -> np.ndarray:
     raise ValueError("Exact comparisons do not have a numeric delta operation")
 
 
-def _signed_delta(
-    a: np.ndarray,
-    b: np.ndarray,
-    comparison: str,
-) -> np.ndarray:
+def _signed_delta(a, b, comparison):
     """
     Calculate signed differences using the convention Case B - Case A.
 
@@ -184,10 +94,7 @@ def _signed_delta(
     )
 
 
-def _distribution_stats(
-    values: np.ndarray,
-    prefix: str,
-) -> dict[str, Any]:
+def _distribution_stats(values, prefix):
     """Calculate distribution statistics for finite numeric values."""
     values = np.asarray(values, dtype=float).reshape(-1)
     values = values[np.isfinite(values)]
@@ -252,24 +159,11 @@ def _relative_delta(
     return result
 
 
-def _asset_stats(
-        asset_ids: Any,
-        mismatch: np.ndarray,
-        valid: np.ndarray,
-        ) -> dict[str, Any]:
+def _asset_stats(asset_ids, mismatch, valid):
         """Calculate unique affected-asset statistics."""
-        if asset_ids is None:
-            return {}
 
-        ids = np.asarray(asset_ids).reshape(-1)
-        mismatch = np.asarray(mismatch, dtype=bool).reshape(-1)
-        valid = np.asarray(valid, dtype=bool).reshape(-1)
-
-        if not (len(ids) == len(mismatch) == len(valid)):
-            return {}
-
-        valid_ids = ids[valid]
-        affected_ids = ids[valid & mismatch]
+        valid_ids = asset_ids[valid]
+        affected_ids = asset_ids[valid & mismatch]
 
         # Exclude missing asset identifiers from the counts.
         valid_ids = valid_ids[~pd.isna(valid_ids)]
@@ -289,11 +183,7 @@ def _asset_stats(
         }
 
 
-def _signed_delta_stats(
-    signed_delta: np.ndarray,
-    mismatch: np.ndarray,
-    valid: np.ndarray,
-) -> dict[str, Any]:
+def _signed_delta_stats(signed_delta, mismatch, valid):
     """Calculate directional statistics for mismatching values."""
 
     signed_delta = np.asarray(signed_delta, dtype=float)
@@ -327,12 +217,7 @@ def _signed_delta_stats(
     }
 
 
-def _stats(
-    delta: np.ndarray,
-    mismatch: np.ndarray,
-    severe: np.ndarray,
-    valid: np.ndarray,
-) -> dict[str, Any]:
+def _stats(delta, mismatch, severe, valid):
     """Calculate comparison counts and distribution statistics."""
     d = np.asarray(delta)[valid]
 
@@ -354,8 +239,7 @@ def _stats(
     return statistics
 
 
-def compare_arrays(definition: MetricDefinition, values_a: Any, values_b: Any,
-                   asset_ids: Any = None) -> dict[str, Any]:
+def compare_arrays(definition, values_a, values_b, asset_ids = None):
     """Compare corresponding rows using vectorized NumPy operations."""
     a, b = np.asarray(values_a), np.asarray(values_b)
     if a.shape != b.shape:
@@ -405,7 +289,7 @@ def compare_arrays(definition: MetricDefinition, values_a: Any, values_b: Any,
 
         statistics.update(_signed_delta_stats( signed_delta=signed_delta, mismatch=mismatch, valid=valid))
 
-    statistics.update(_asset_stats( asset_ids=asset_ids, mismatch=mismatch, valid=valid))
+    statistics.update(_asset_stats(asset_ids=asset_ids, mismatch=mismatch, valid=valid))
     if not valid.any():
         status = "NOT PERFORMED"
         reason = "No valid corresponding values"
@@ -425,21 +309,23 @@ def compare_arrays(definition: MetricDefinition, values_a: Any, values_b: Any,
             "reason": reason, "statistics": statistics}
 
 
-def compare_scope_asset(definitions: list[MetricDefinition],
-                        extract: Callable[[MetricDefinition, str], Any],
-                        asset_ids: Any = None) -> list[dict[str, Any]]:
-    """Run once for a scope/asset group and compare all enabled parameters.
-
-    ``extract(definition, case)`` is the source adapter contract. It should
-    return an array, or raise an exception when a source/parameter is missing.
-    Derived formulas are evaluated by a source adapter using SafeFormula and
-    same-table column arrays before passing values to this function.
+def compare_scope_asset(definitions, table_a, table_b, asset_ids):
+    """
+    Run once for a scope/asset group and compare all enabled parameters.
     """
     results = []
     for definition in definitions:
         try:
-            a = extract(definition, "a")
-            b = extract(definition, "b")
+            if definition.source == "derived":
+                a = SafeFormula().evaluate(definition.parameter_id, table_a)
+                b = SafeFormula().evaluate(definition.parameter_id, table_b)
+            else:
+                a = table_a[definition.parameter_id]
+                b = table_b[definition.parameter_id]
+                if definition.asset_name == "load" and definition.scope == 'model':
+                    a = a[np.flatnonzero((table_a['PD'] != 0) | (table_a['QD'] != 0))]
+                    b = b[np.flatnonzero((table_b['PD'] != 0) | (table_b['QD'] != 0))]
+                    asset_ids = np.asarray(list(range(len(a))))
             results.append(compare_arrays(definition, a, b, asset_ids=asset_ids))
         except (KeyError, AttributeError, IndexError, ValueError, TypeError) as exc:
             results.append({"scope": definition.scope, "asset_name": definition.asset_name,
@@ -451,14 +337,14 @@ def compare_scope_asset(definitions: list[MetricDefinition],
     return results
 
 
-def group_definitions(definitions: list[MetricDefinition]) -> dict[tuple[str, str], list[MetricDefinition]]:
-    groups: dict[tuple[str, str], list[MetricDefinition]] = {}
+def group_definitions(definitions):
+    groups = {}
     for definition in definitions:
         groups.setdefault((definition.scope, definition.asset_name), []).append(definition)
     return groups
 
 
-def export_comparison_excel(results: list[dict[str, Any]], path: str | Path) -> None:
+def export_comparison_excel(results, path):
     """Export long-form parameter/asset details and aggregate statistics.
 
     A row is emitted per asset and parameter; callers can provide array-valued

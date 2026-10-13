@@ -1,0 +1,50 @@
+====================================================================================================
+POWER FLOW CASE COMPARISON REPORT
+====================================================================================================
+
+Executive Status
+----------------------------------------------------------------------------------------------------
+
+Model Match         : NO
+Results Comparable  : NO
+Validation Passed   : NO
+Validation Reason   : Solved-state results are not comparable. Reason: Precheck Failed: Model comparison cannot proceed because assets count do not match.
+Results Match       : N/A
+
+====================================================================================================
+1. MODEL / NETWORK SUMMARY
+====================================================================================================
+
+Overall Status
+----------------------------------------------------------------------------------------------------
+Model Match         : NO
+Results Comparable  : NO
+
+Asset Count Summary
+----------------------------------------------------------------------------------------------------
+
+Asset                             Case A          Case B
+--------------------------------------------------------
+Bus                                 6515            6515
+Branch                              9037            9037
+Generation                           685             684
+Load                                3673            3673
+
+Ybus Comparison
+----------------------------------------------------------------------------------------------------
+Ybus Match          : NO
+Bus Count Match     : YES
+Topology Match      : YES
+Ybus Value Match    : NO
+Pattern Differences : 0
+Value Differences   : 3706
+Maximum Ybus |delta|: 3568990.181640
+Unit                : pu
+Bus count in Case A : 6515
+Bus count in Case B : 6515
+Reason              : Ybus value mismatch: admittance values differ beyond tolerance.
+
+Detailed Model Comparisons
+----------------------------------------------------------------------------------------------------
+
+No enabled model metadata metrics were configured.

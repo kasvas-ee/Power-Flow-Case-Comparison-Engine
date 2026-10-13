@@ -89,71 +89,198 @@ def compute_ybus_matric(ppc):
         )
 
 
-def compare_models(ppcs, ybus_result):
-    """Create the model-comparison stage after the primary Ybus test.
-
-    Asset-level model checks are metadata-driven; this function only enforces
-    the Ybus prerequisites and returns a container for those results.
-    PPC conversion, Ybus construction, and Ybus comparison remain unchanged.
+def count_mismatching_assets(metadata_comparisons, asset_name):
     """
-    result = ModelComparisonResult()
-    if not ybus_result.bus_count_match:
-        return ActionResult(
-            action="Model Comparison", success=False, result=result,
-            error_type="PrerequisiteError",
-            error_reason="Number of buses differs between cases.",
-        )
-    if not ybus_result.topology_match:
-        return ActionResult(
-            action="Model Comparison", success=False, result=result,
-            error_type="PrerequisiteError",
-            error_reason="Network topology differs between cases.",
-        )
-    return ActionResult(action="Model Comparison", success=True, result=result)
+    Count unique assets with at least one parameter mismatch.
 
+    The raw metadata comparison dictionaries contain asset_ids and
+    mismatch_mask. Multiple parameter comparisons can refer to the
+    same asset, so asset IDs are deduplicated before counting.
 
-def _populate_model_summary_from_metadata(result):
-    """Create report/insight summary objects from metadata results (no re-comparison)."""
-    from src.reporting.metadata_report_adapter import metadata_result_for_report
-    from types import SimpleNamespace
-    by_asset = {}
-    for item in result.metadata_comparisons:
-        key = str(item.get("asset_name", "")).lower()
-        by_asset.setdefault(key, {})[str(item.get("parameter_id") or item.get("parameter_name"))] = metadata_result_for_report(item)
-    result.bus = _combine_metadata_group(by_asset.get("bus", {}))
-    result.branch = _combine_metadata_group(by_asset.get("branch", {}))
-    result.load = _combine_metadata_group(by_asset.get("load", {}))
-    result.generation = _combine_metadata_group(by_asset.get("generation", {}))
+    Returns None when no usable per-asset comparison data is available.
+    """
+    import numpy as np
+    import pandas as pd
 
+    mismatching_ids = []
 
-def _combine_metadata_group(metrics):
-    if not metrics:
+    for item in metadata_comparisons:
+        if str(item.get("asset_name", "")).strip().lower() != asset_name:
+            continue
+
+        if str(item.get("status", "")).strip().upper() == "NOT PERFORMED":
+            continue
+
+        asset_ids = item.get("asset_ids")
+        mismatch_mask = item.get("mismatch_mask")
+
+        if asset_ids is None or mismatch_mask is None:
+            continue
+
+        ids = np.asarray(asset_ids).reshape(-1)
+        mask = np.asarray(mismatch_mask, dtype=bool).reshape(-1)
+
+        if len(ids) != len(mask):
+            continue
+
+        # Select all mismatching IDs at once; no per-asset Python loop.
+        affected_ids = ids[mask]
+
+        # Ignore missing IDs.
+        if affected_ids.size:
+            affected_ids = affected_ids[~pd.isna(affected_ids)]
+
+            if affected_ids.size:
+                mismatching_ids.append(affected_ids)
+
+    if not mismatching_ids:
         return None
-    # Preserve individual metadata results; the report uses raw metadata records.
+
+    # Deduplicate assets that mismatch on multiple parameters.
+    unique_ids = np.unique(np.concatenate(mismatching_ids))
+
+    return int(unique_ids.size)
+
+
+def _populate_model_summary_from_metadata(result, asset_counts_a, asset_counts_b):
+    """
+    Create report/insight summaries from metadata results and attach
+    unique asset-level mismatch statistics.
+    """
+    from src.reporting.metadata_report_adapter import metadata_result_for_report
+
+    by_asset = {}
+
+    for item in result.metadata_comparisons:
+        key = str(item.get("asset_name", "")).strip().lower()
+
+        by_asset.setdefault(key, {})[
+            str(item.get("parameter_id") or item.get("parameter_name"))
+        ] = metadata_result_for_report(item)
+
+    asset_groups = {
+        "bus": "Bus",
+        "branch": "Branch",
+        "load": "Load",
+        "generation": "Generation",
+    }
+
+    for summary_name, count_key in asset_groups.items():
+        metrics = by_asset.get(summary_name, {})
+
+        count_a = asset_counts_a.get(count_key, 0)
+        count_b = asset_counts_b.get(count_key, 0)
+
+        if count_a != count_b:
+            mismatch_asset_count = None
+        else:
+            mismatch_asset_count = count_mismatching_assets(
+                result.metadata_comparisons,
+                summary_name,
+            )
+
+            if mismatch_asset_count is None:
+                performed_results = [
+                    item
+                    for item in result.metadata_comparisons
+                    if str(item.get("asset_name", "")).strip().lower()
+                    == summary_name
+                    and str(item.get("status", "")).strip().upper()
+                    != "NOT PERFORMED"
+                    and item.get("asset_ids") is not None
+                    and item.get("mismatch_mask") is not None
+                ]
+
+                if performed_results:
+                    mismatch_asset_count = 0
+
+        summary = _combine_metadata_group(
+            metrics=metrics,
+            asset_count_a=count_a,
+            asset_count_b=count_b,
+            mismatch_asset_count=mismatch_asset_count,
+        )
+
+        setattr(result, summary_name, summary)
+
+    return
+
+
+def _combine_metadata_group(
+    metrics,
+    asset_count_a,
+    asset_count_b,
+    mismatch_asset_count,
+):
+    """
+    Combine parameter summaries and attach asset-level statistics.
+
+    Asset-level mismatch statistics are not relevant when Case A and
+    Case B contain different numbers of assets of this type.
+    """
+    from types import SimpleNamespace
+
+    counts_match = asset_count_a == asset_count_b
+
+    if counts_match:
+        mismatch_percentage = (
+            100.0 * mismatch_asset_count / asset_count_a
+            if asset_count_a > 0 and mismatch_asset_count is not None
+            else (
+                0.0
+                if asset_count_a == 0 and mismatch_asset_count == 0
+                else None
+            )
+        )
+    else:
+        mismatch_asset_count = None
+        mismatch_percentage = None
+
     return SimpleNamespace(
-        is_match=all(getattr(v, "is_match", False) for v in metrics.values()),
-        compared_count=sum(getattr(v, "compared_count", 0) for v in metrics.values()),
-        mismatch_count=sum(getattr(v, "mismatch_count", 0) for v in metrics.values()),
-        severe_count=sum(getattr(v, "severe_count", 0) for v in metrics.values()),
+        is_match=(
+            all(getattr(v, "is_match", False) for v in metrics.values())
+            if metrics
+            else None
+        ),
+        compared_count=sum(
+            getattr(v, "compared_count", 0)
+            for v in metrics.values()
+        ),
+        mismatch_count=sum(
+            getattr(v, "mismatch_count", 0)
+            for v in metrics.values()
+        ),
+        severe_count=sum(
+            getattr(v, "severe_count", 0)
+            for v in metrics.values()
+        ),
         metrics=metrics,
+
+        # Asset-level statistics
+        asset_count_a=asset_count_a,
+        asset_count_b=asset_count_b,
+        mismatch_asset_count=mismatch_asset_count,
+        mismatch_asset_percentage=mismatch_percentage,
     )
 
 
-def _get_asset_counts(net):
+def get_asset_counts(ppc):
     """Return asset counts without iterating through individual assets."""
 
-    def table_count(table_name):
-        table = net.get(table_name)
-        return 0 if table is None else len(table)
+    def table_count(table_name, non_zero_column_ids=[]):
+        table = ppc.get(table_name)
+        if table is None:
+            return 0
+        if non_zero_column_ids:
+            return np.count_nonzero(np.any(table[:, non_zero_column_ids] != 0, axis=1))
+        else:
+            return len(table)
 
     return {
         "Bus": table_count("bus"),
-        "Branch": table_count("impedance"),
-        "Generation": (
-            table_count("gen")
-            + table_count("ext_grid")
-        ),
-        "Load": table_count("load"),
+        "Branch": table_count("branch"),
+        "Generation": table_count("gen"),
+        "Load": table_count("bus", [2, 3]),
     }
 
 
@@ -173,6 +300,7 @@ def match_model(case_a, case_b, config=None):
             ↓
         detailed model comparison
     """
+    results_comparability = ValidationResult(False)  # Placeholder to capture state comparability and reason if False
 
     cases = {
         "Case A": case_a,
@@ -183,7 +311,7 @@ def match_model(case_a, case_b, config=None):
     ybus = {}
 
     # ---------------------------------------------------------
-    # 1. Convert both cases to PPC.
+    # 1. Convert both cases to PPC and generate YBus matrix.
     # ---------------------------------------------------------
 
     for case_name, case in cases.items():
@@ -201,163 +329,117 @@ def match_model(case_a, case_b, config=None):
                 action="Ybus creation",
                 success=False,
                 error_type="PrerequisiteError",
-                error_reason=(
-                    "PPC conversion failed; "
-                    "Ybus cannot be constructed."
-                ),
+                error_reason="PPC conversion failed; Ybus cannot be constructed.",
             )
 
             continue
 
-        ybus[case_name] = compute_ybus_matric(
-            ppcs[case_name].result
-        )
+        # Generate Ybus matrix
+        ybus[case_name] = compute_ybus_matric(ppcs[case_name].result)
 
     # ---------------------------------------------------------
     # 2. Ybus comparison.
     # ---------------------------------------------------------
-
-    if (
-        ppcs["Case A"].success
-        and ppcs["Case B"].success
-        and ybus["Case A"].success
-        and ybus["Case B"].success
-    ):
-
-        ybus_comparison_result = compare_ybus(
-            ybus["Case A"].result,
-            ybus["Case B"].result,
-            tol=1e-6,
-        )
-
-        ybus_comparison = ActionResult(
-            action="Ybus Comparison",
-            success=True,
-            result=ybus_comparison_result,
-        )
-
+    ybus_comparison = ActionResult(action="Ybus Comparison")
+    if ybus["Case A"].success and ybus["Case B"].success:
+        ybus_comparison.result = compare_ybus(ybus["Case A"].result, ybus["Case B"].result, tol=config.y_pu_tolerance)
+        ybus_comparison.success = True
     else:
-
         failed_cases = []
 
-        if not ppcs["Case A"].success:
-            failed_cases.append("Case A PPC conversion")
+        if not ppcs["Case A"].success : failed_cases.append("Case A PPC conversion")
+        if not ppcs["Case B"].success : failed_cases.append("Case B PPC conversion")
+        if not ybus["Case A"].success : failed_cases.append("Case A Ybus construction")
+        if not ybus["Case B"].success : failed_cases.append("Case B Ybus construction")
 
-        if not ppcs["Case B"].success:
-            failed_cases.append("Case B PPC conversion")
-
-        if not ybus["Case A"].success:
-            failed_cases.append("Case A Ybus construction")
-
-        if not ybus["Case B"].success:
-            failed_cases.append("Case B Ybus construction")
-
-        ybus_comparison = ActionResult(
-            action="Ybus Comparison",
-            success=False,
-            error_type="PrerequisiteError",
-            error_reason=(
-                "Ybus comparison could not be performed. "
-                "Failed prerequisites: "
-                + ", ".join(failed_cases)
-            ),
-        )
-
+        ybus_comparison.success=False
+        ybus_comparison.error_type = "PrerequisiteError"
+        ybus_comparison.error_reason = ("Ybus comparison could not be performed. "
+                                        "Failed prerequisites: " + ", ".join(failed_cases))
     logger.info(ybus_comparison)
 
     # ---------------------------------------------------------
-    # 3. Detailed model comparison.
+    # 3. Detailed assetwise model comparison.
     # ---------------------------------------------------------
+    model_comparison = ActionResult(action="Model Comparison")
+    model_comparison.result = ModelComparisonResult()
 
-    if not ybus_comparison.success:
+    # Get asset counts
+    asset_counts_a = get_asset_counts(ppcs["Case A"].result)
+    asset_counts_b = get_asset_counts(ppcs["Case B"].result)
+    counts_match = asset_counts_a==asset_counts_b
+    _populate_model_summary_from_metadata(model_comparison.result, asset_counts_a, asset_counts_b)
 
-        model_comparison = ActionResult(
-            action="Model Comparison",
-            success=False,
-            result=ModelComparisonResult(),
-            error_type="PrerequisiteError",
-            error_reason=(
-                "Model comparison cannot proceed because "
-                "Ybus comparison was not completed."
-            ),
-        )
-
+    # Check if all pre-checks have passed
+    reason_prefix = "Precheck Failed: Model comparison cannot proceed because "
+    if ybus_comparison.success and counts_match:
+        if ybus_comparison.result.topology_match and ybus_comparison.result.bus_count_match:
+            model_comparison.success = True
+        else:
+            model_comparison.success = False
+            model_comparison.error_type = "PrerequisiteError"
+            reason = "number of buses in the system do not match" if not ybus_comparison.result.bus_count_match \
+                else "the Ybus sparsity patterns differ, indicating a network topology mismatch."
+            model_comparison.error_reason = reason_prefix + reason
+            results_comparability.is_valid = False
+            results_comparability.reason = reason_prefix + reason
     else:
+        model_comparison.success=False
+        model_comparison.error_type = "PrerequisiteError"
+        reason = "Ybus comparison was not completed." if not ybus_comparison.success else "assets count do not match."
+        model_comparison.error_reason = reason_prefix + reason
+        results_comparability.is_valid = False
+        results_comparability.reason = reason_prefix + reason
 
-        model_comparison = compare_models(
-            [
-                ppcs["Case A"].result,
-                ppcs["Case B"].result,
-            ],
-            ybus_comparison.result,
-        )
-
-    model_comparison.result.asset_counts_a = _get_asset_counts(case_a)
-    model_comparison.result.asset_counts_b = _get_asset_counts(case_b)
-
-    metrics_path = Path(__file__).resolve().parents[2] / "config/metrics.csv"
-    if model_comparison.success and metrics_path.exists():
+    # Initiate comparison of asset parameters
+    if not model_comparison.success:
+        results_comparability.is_valid = False
+        reason = "Results are not comparable: the model-comparison stage did not complete."
+        results_comparability.reason = reason if results_comparability.reason is None else results_comparability.reason
+    else:  # Initiate comparison of asset parameters
+        # If Ybus has matched, the bus and branch data are bound to match.
+        skip_assets = ({"bus", "branch"} if ybus_comparison.result.is_match else {})
         try:
-            skip_assets = (
-                {"bus", "branch"}
-                if ybus_comparison.result.is_match
-                else set()
-            )
-
             model_comparison.result.metadata_comparisons = run_metadata_comparisons(
                 (case_a, case_b),
                 (ppcs["Case A"].result, ppcs["Case B"].result),
-                metrics_path,
+                metrics=config.metric_definitions,
                 scope="model",
                 skip_assets=skip_assets,
                 report_all_mismatches=config.report_all_mismatches,
+                enable_multiprocessing=config.enable_multiprocessing
             )
 
             model_comparison.result.top_severe = rank_metadata(
                 model_comparison.result.metadata_comparisons,
-                int(getattr(config, "top_n_severe", 5)),
+                config.top_n_severe,
             )
 
-            _populate_model_summary_from_metadata(model_comparison.result)
+            _populate_model_summary_from_metadata(model_comparison.result, asset_counts_a, asset_counts_b)
+
             logger.info(
-                "Metadata model comparisons completed: %d parameter comparisons",
+                "Comparison of all assets in the model is completed: %d parameter comparisons",
                 len(model_comparison.result.metadata_comparisons),
             )
         except Exception as exc:
             # Diagnostics are deliberately non-blocking during this integration step.
             logger.warning("Metadata model diagnostics were not performed: %s", exc)
+            results_comparability.is_valid = False
+            results_comparability.reason = "The model-comparison stage did not complete."
+
+        # logger.info(model_comparison)
+        results_comparability.is_valid = True
+        results_comparability.reason = "Power-flow results are comparable: Asset counts and network topology match."
 
     return (
         ppcs,
         ybus,
         ybus_comparison,
         model_comparison,
+        results_comparability,
+        asset_counts_a,
+        asset_counts_b,
     )
-
-
-def determine_results_comparability(ybus_comparison, model_comparison):
-    """Results are comparable when Ybus dimensions/topology align."""
-    if ybus_comparison is None or not ybus_comparison.success:
-        return ValidationResult(False, "Results are not comparable: Ybus comparison was not performed.")
-    ybus_result = ybus_comparison.result
-    if not ybus_result.bus_count_match:
-        return ValidationResult(False, "Results are not comparable: the two cases have different numbers of buses.")
-    if not ybus_result.topology_match:
-        return ValidationResult(False, "Results are not comparable: the Ybus sparsity patterns differ, indicating a network topology mismatch.")
-    if model_comparison is None or not model_comparison.success:
-        return ValidationResult(False, "Results are not comparable: the model-comparison stage did not complete.")
-    return ValidationResult(True, "Power-flow results are comparable: bus count and network topology match.")
-
-
-def validate_model_comparison(model_comparison, ybus_comparison, results_comparable):
-    """Validate that Ybus and metadata model-comparison stages completed."""
-    if ybus_comparison is None or not ybus_comparison.success:
-        return ValidationResult(False, "Model comparison is invalid because Ybus comparison did not complete.")
-    if model_comparison is None or not model_comparison.success:
-        return ValidationResult(False, f"Model comparison failed: {getattr(model_comparison, 'error_reason', 'not performed')}" )
-    if not results_comparable.is_valid:
-        return ValidationResult(True, "Model comparison completed, but solved-state results are not comparable. " + str(results_comparable.reason))
-    return ValidationResult(True, "Model comparison completed and solved-state results are comparable.")
 
 
 def determine_model_match(ybus_comparison, model_comparison):

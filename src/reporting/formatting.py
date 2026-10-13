@@ -130,7 +130,7 @@ def format_comparison_result(metric_name, comparison_result):
         is_match = getattr(comparison_result, "is_match", None)
         display_status = format_bool(is_match)
 
-    lines.append(f"Status              : {display_status}")
+    lines.append(f"Match               : {display_status}")
 
     metric = getattr(comparison_result, "metric", None)
     unit = getattr(comparison_result, "unit", None)
@@ -243,6 +243,7 @@ def format_metadata_asset_group(
     asset_label,
     metric_name_keys,
     top_severe=None,
+    asset_summary=[]
 ):
     """Render each metric and its severe rows immediately after its summary."""
     if not entries:
@@ -251,14 +252,34 @@ def format_metadata_asset_group(
     top_severe = top_severe or {}
 
     status = asset_summary_status(entries)
+    status = asset_summary_status(entries)
+    asset_summary = asset_summary or {}
+
+    mismatch_asset_count = asset_summary.get("mismatch_asset_count")
+    mismatch_asset_percentage = asset_summary.get(
+        "mismatch_asset_percentage"
+    )
 
     lines = [
         "-" * ASSET_RULE_WIDTH,
         f"Asset               : {asset_label}",
         f"Status              : {status}",
+    ]
+
+    if mismatch_asset_count is not None:
+        lines.append(
+            f"Mismatch Asset Count: {mismatch_asset_count}"
+        )
+
+    if mismatch_asset_percentage is not None:
+        lines.append(
+            f"Mismatch Asset %    : {mismatch_asset_percentage:.2f}%"
+        )
+
+    lines.extend([
         "-" * ASSET_RULE_WIDTH,
         "",
-    ]
+    ])
 
     if status == "Skipped because Ybus matched.":
         return lines
@@ -285,9 +306,10 @@ def format_metadata_asset_group(
         ranked_rows = top_severe.get(key, [])
 
         if ranked_rows:
+            title = f"Severe Differences (Top {len(ranked_rows)})"
             lines.extend(
                 format_ranked_results(
-                    title="Severe Differences (Top N)",
+                    title=title,
                     ranked_results=ranked_rows,
                 )
             )

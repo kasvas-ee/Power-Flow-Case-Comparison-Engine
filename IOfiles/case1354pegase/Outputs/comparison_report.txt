@@ -1,0 +1,733 @@
+====================================================================================================
+POWER FLOW CASE COMPARISON REPORT
+====================================================================================================
+
+Executive Status
+----------------------------------------------------------------------------------------------------
+
+Model Match         : NO
+Results Comparable  : YES
+Validation Passed   : YES
+Validation Reason   : Model comparison completed and solved-state results are comparable.
+Results Match       : NO
+
+====================================================================================================
+1. MODEL / NETWORK SUMMARY
+====================================================================================================
+
+Overall Status
+----------------------------------------------------------------------------------------------------
+Model Match         : NO
+Results Comparable  : YES
+
+Asset Count Summary
+----------------------------------------------------------------------------------------------------
+
+Asset                             Case A          Case B
+--------------------------------------------------------
+Bus                                 1354            1354
+Branch                              1991            1991
+Generation                           260             260
+Load                                 673             673
+
+Ybus Comparison
+----------------------------------------------------------------------------------------------------
+Ybus Match          : NO
+Bus Count Match     : YES
+Topology Match      : YES
+Ybus Value Match    : NO
+Pattern Differences : 0
+Value Differences   : 164
+Maximum Ybus |delta|: 83772.649717
+Unit                : pu
+Bus count in Case A : 1354
+Bus count in Case B : 1354
+Reason              : Ybus value mismatch: admittance values differ beyond tolerance.
+
+Detailed Model Comparisons
+----------------------------------------------------------------------------------------------------
+
+--------------------------------------------------
+Asset               : Bus
+Status              : YES
+Mismatch Asset Count: 0
+Mismatch Asset %    : 0.00%
+--------------------------------------------------
+
+Metric              : bus_id
+Match               : YES
+Description         : Bus Nominal Voltage
+Unit                : bus_id
+Compared count      : 1354
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+--------------------------------------------------
+Asset               : Branch
+Status              : NO
+Mismatch Asset Count: 64
+Mismatch Asset %    : 3.21%
+--------------------------------------------------
+
+Metric              : fbus
+Match               : YES
+Description         : From Bus
+Unit                : bus_id
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+Metric              : tbus
+Match               : YES
+Description         : To Bus
+Unit                : bus_id
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+Metric              : r_pu
+Match               : NO
+Description         : Branch Resistance
+Unit                : pu
+Compared count      : 1991
+Mismatch count      : 64
+Severe count        : 64
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+Max |delta|         : 0.001233 on branch_1944 (relative delta: 99.90%)
+Max relative delta  : 99.90% on branch_3 (|delta|: 0.000787)
+Mean |delta|        : 0.000025
+RMS delta           : 0.000142
+P50 |delta|         : 0.000000
+P90 |delta|         : 0.000000
+P95 |delta|         : 0.000000
+P99 |delta|         : 0.000809
+
+Severe Differences (Top 10)
+----------------------------------------------------------------------------------------------------
+Rank    Asset                             Case A          Case B           Delta         |Delta|
+----------------------------------------------------------------------------------------------------
+1       branch_1944                     0.000001        0.001234       +0.001233        0.001233
+2       branch_1103                     0.000001        0.000975       +0.000974        0.000974
+3       branch_1831                     0.000001        0.000923       +0.000922        0.000922
+4       branch_382                      0.000001        0.000923       +0.000922        0.000922
+5       branch_852                      0.000001        0.000912       +0.000911        0.000911
+6       branch_95                       0.000001        0.000912       +0.000911        0.000911
+7       branch_540                      0.000001        0.000902       +0.000901        0.000901
+8       branch_1472                     0.000001        0.000902       +0.000901        0.000901
+9       branch_503                      0.000001        0.000892       +0.000891        0.000891
+10      branch_1473                     0.000001        0.000881       +0.000880        0.000880
+----------------------------------------------------------------------------------------------------
+
+Metric              : x_pu
+Match               : NO
+Description         : Branch Reactance
+Unit                : pu
+Compared count      : 1991
+Mismatch count      : 64
+Severe count        : 64
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+Max |delta|         : 0.052052 on branch_314 (relative delta: 99.90%)
+Max relative delta  : 99.90% on branch_95 (|delta|: 0.040474)
+Mean |delta|        : 0.001344
+RMS delta           : 0.007545
+P50 |delta|         : 0.000000
+P90 |delta|         : 0.000000
+P95 |delta|         : 0.000000
+P99 |delta|         : 0.043790
+
+Severe Differences (Top 10)
+----------------------------------------------------------------------------------------------------
+Rank    Asset                             Case A          Case B           Delta         |Delta|
+----------------------------------------------------------------------------------------------------
+1       branch_314                      0.000052        0.052105       +0.052052        0.052052
+2       branch_889                      0.000049        0.049098       +0.049049        0.049049
+3       branch_1243                     0.000049        0.048932       +0.048884        0.048884
+4       branch_348                      0.000048        0.048237       +0.048189        0.048189
+5       branch_752                      0.000047        0.047480       +0.047433        0.047433
+6       branch_1698                     0.000047        0.047480       +0.047433        0.047433
+7       branch_1959                     0.000047        0.047253       +0.047206        0.047206
+8       branch_1737                     0.000047        0.047107       +0.047060        0.047060
+9       branch_421                      0.000047        0.047025       +0.046978        0.046978
+10      branch_560                      0.000047        0.046735       +0.046689        0.046689
+----------------------------------------------------------------------------------------------------
+
+Metric              : b_pu
+Match               : YES
+Description         : Branch Charging Susceptance
+Unit                : pu
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+--------------------------------------------------
+Asset               : Load
+Status              : YES
+Mismatch Asset Count: 0
+Mismatch Asset %    : 0.00%
+--------------------------------------------------
+
+Metric              : bus_id
+Match               : YES
+Description         : Load Bus ID
+Unit                : bus_id
+Compared count      : 673
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+Metric              : p_mw
+Match               : YES
+Description         : Load Active Power
+Unit                : MW
+Compared count      : 673
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+Metric              : q_mvar
+Match               : YES
+Description         : Load Reactive Power
+Unit                : MVAr
+Compared count      : 673
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+--------------------------------------------------
+Asset               : Generation
+Status              : YES
+Mismatch Asset Count: 0
+Mismatch Asset %    : 0.00%
+--------------------------------------------------
+
+Metric              : bus_id
+Match               : YES
+Description         : Generator Bus ID
+Unit                : bus_id
+Compared count      : 260
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+Metric              : p_mw
+Match               : YES
+Description         : Generator Active Power
+Unit                : MW
+Compared count      : 260
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+Metric              : p_max_mw
+Match               : YES
+Description         : Generator Maximum Active Power
+Unit                : MW
+Compared count      : 260
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+Metric              : p_min_mw
+Match               : YES
+Description         : Generator Minimum Active Power
+Unit                : MW
+Compared count      : 260
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+Metric              : vm_pu
+Match               : YES
+Description         : Generator Voltage Setpoint
+Unit                : pu
+Compared count      : 260
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : 0.000000
+
+Metric              : q_max_mvar
+Match               : YES
+Description         : Generator Maximum Reactive Power
+Unit                : MVAr
+Compared count      : 258
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+Metric              : q_min_mvar
+Match               : YES
+Description         : Generator Minimum Reactive Power
+Unit                : MVAr
+Compared count      : 258
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 0.000100
+
+====================================================================================================
+2. POWER-FLOW STATE SUMMARY
+====================================================================================================
+
+Overall Result Status
+----------------------------------------------------------------------------------------------------
+Results Comparable  : YES
+Results Match       : NO
+
+--------------------------------------------------
+Asset               : Bus
+Status              : YES
+Mismatch Asset Count: 0
+Mismatch Asset %    : 0.00%
+--------------------------------------------------
+
+Metric              : vm_pu
+Match               : YES
+Description         : Bus Voltage Magnitude
+Unit                : pu
+Compared count      : 1354
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.010000
+Severity threshold  : 0.010000
+
+Metric              : va_degree
+Match               : YES
+Description         : Bus Voltage Angle
+Unit                : degree
+Compared count      : 1354
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.010000
+Severity threshold  : 3.000000
+
+--------------------------------------------------
+Asset               : Generation
+Status              : NO
+Mismatch Asset Count: 126
+Mismatch Asset %    : 48.46%
+--------------------------------------------------
+
+Metric              : p_mw
+Match               : NO
+Description         : Generation Active Power
+Unit                : MW
+Compared count      : 260
+Mismatch count      : 126
+Severe count        : 125
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+Max |delta|         : 2543.937495 on generation_125 (relative delta: 97.42%)
+Max relative delta  : 195.46% on generation_16 (|delta|: 228.100000)
+Mean |delta|        : 231.086442
+RMS delta           : 473.693865
+P50 |delta|         : 0.000000
+P90 |delta|         : 874.472000
+P95 |delta|         : 1200.030000
+P99 |delta|         : 1499.887500
+
+Severe Differences (Top 10)
+----------------------------------------------------------------------------------------------------
+Rank    Asset                             Case A          Case B           Delta         |Delta|
+----------------------------------------------------------------------------------------------------
+1       generation_125                 67.500000     2611.437495    +2543.937495     2543.937495
+2       generation_0                 2611.437495      861.300000    +1750.137495     1750.137495
+3       generation_32                -124.150000     1504.800000    +1628.950000     1628.950000
+4       generation_64                 -43.200000     1367.000000    +1410.200000     1410.200000
+5       generation_20                 -89.200000     1274.200000    +1363.400000     1363.400000
+6       generation_71                1367.000000       41.920000    +1325.080000     1325.080000
+7       generation_65                1367.000000       46.800000    +1320.200000     1320.200000
+8       generation_74                1221.200000      -95.100000    +1316.300000     1316.300000
+9       generation_70                  76.480000     1367.000000    +1290.520000     1290.520000
+10      generation_47                1250.400000       -0.600000    +1251.000000     1251.000000
+----------------------------------------------------------------------------------------------------
+
+Metric              : q_mvar
+Match               : NO
+Description         : Generation Reactive Power
+Unit                : MVAr
+Compared count      : 258
+Mismatch count      : 125
+Severe count        : 120
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+Max |delta|         : 845.891796 on generation_125 (relative delta: 97.22%)
+Max relative delta  : 197.54% on generation_67 (|delta|: 28.863995)
+Mean |delta|        : 53.782277
+RMS delta           : 119.130497
+P50 |delta|         : 0.000000
+P90 |delta|         : 187.633311
+P95 |delta|         : 288.380428
+P99 |delta|         : 389.785913
+
+Severe Differences (Top 10)
+----------------------------------------------------------------------------------------------------
+Rank    Asset                             Case A          Case B           Delta         |Delta|
+----------------------------------------------------------------------------------------------------
+1       generation_125                 24.157921      870.049716     +845.891796      845.891796
+2       generation_23                 150.352068      660.894254     +510.542187      510.542187
+3       generation_73                 -13.249109      382.189134     +395.438243      395.438243
+4       generation_74                 382.189134       -3.332741     +385.521875      385.521875
+5       generation_98                 368.714428        5.973160     +362.741268      362.741268
+6       generation_32                  16.901695      373.510775     +356.609080      356.609080
+7       generation_97                  17.539633      368.714428     +351.174795      351.174795
+8       generation_25                 403.055195       55.113857     +347.941338      347.941338
+9       generation_64                 -17.589025      304.216039     +321.805064      321.805064
+10      generation_65                 304.216039        5.358918     +298.857121      298.857121
+----------------------------------------------------------------------------------------------------
+
+Metric              : p_share
+Match               : NO
+Description         : Generation Active Power Share
+Unit                : %
+Compared count      : 260
+Mismatch count      : 122
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 5.000000
+Max |delta|         : 0.034045 on generation_125 (relative delta: 97.42%)
+Max relative delta  : 195.46% on generation_16 (|delta|: 0.003053)
+Mean |delta|        : 0.003093
+RMS delta           : 0.006339
+P50 |delta|         : 0.000000
+P90 |delta|         : 0.011703
+P95 |delta|         : 0.016060
+P99 |delta|         : 0.020073
+
+--------------------------------------------------
+Asset               : Load
+Status              : NOT PERFORMED
+--------------------------------------------------
+
+Metric              : p_mw
+Match               : NOT PERFORMED
+Description         : Load Active Power
+Unit                : MW
+Compared count      : 0
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : N/A
+Max |delta|         : N/A
+Max relative delta  : N/A%
+Mean |delta|        : N/A
+RMS delta           : N/A
+P50 |delta|         : N/A
+P90 |delta|         : N/A
+P95 |delta|         : N/A
+P99 |delta|         : N/A
+Reason              : Shape mismatch: Case A (673,), Case B (621,)
+
+Metric              : q_mvar
+Match               : NOT PERFORMED
+Description         : Load Reactive Power
+Unit                : MVAr
+Compared count      : 0
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000000
+Severity threshold  : N/A
+Max |delta|         : N/A
+Max relative delta  : N/A%
+Mean |delta|        : N/A
+RMS delta           : N/A
+P50 |delta|         : N/A
+P90 |delta|         : N/A
+P95 |delta|         : N/A
+P99 |delta|         : N/A
+Reason              : Shape mismatch: Case A (673,), Case B (621,)
+
+--------------------------------------------------
+Asset               : Branch
+Status              : NO
+Mismatch Asset Count: 26
+Mismatch Asset %    : 1.31%
+--------------------------------------------------
+
+Metric              : p_from_mw
+Match               : YES
+Description         : Branch From-End Active Power
+Unit                : MW
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+
+Metric              : q_from_mvar
+Match               : YES
+Description         : Branch From-End Reactive Power
+Unit                : MVAr
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+
+Metric              : p_to_mw
+Match               : YES
+Description         : Branch To-End Active Power
+Unit                : MW
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+
+Metric              : q_to_mvar
+Match               : YES
+Description         : Branch To-End Reactive Power
+Unit                : MVAr
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+
+Metric              : s_from_mva
+Match               : YES
+Description         : Branch From-End Apparent Power
+Unit                : MVA
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+
+Metric              : s_to_mva
+Match               : YES
+Description         : Branch To-End Apparent Power
+Unit                : MVA
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.000100
+Severity threshold  : 2.000000
+
+Metric              : p_loss_mw
+Match               : YES
+Description         : Branch Active Power Loss
+Unit                : MW
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.001000
+Severity threshold  : 0.100000
+
+Metric              : q_loss_mvar
+Match               : YES
+Description         : Branch Reactive Power Loss
+Unit                : MVAr
+Compared count      : 1991
+Mismatch count      : 0
+Severe count        : 0
+Tolerance           : 0.001000
+Severity threshold  : 0.100000
+
+Metric              : p_loss_percent
+Match               : NO
+Description         : Branch Active Loss Percentage
+Unit                : %
+Compared count      : 1989
+Mismatch count      : 26
+Severe count        : 6
+Tolerance           : 0.010000
+Severity threshold  : 1.000000
+Max |delta|         : 248.226024 on branch_147 (relative delta: 167.46%)
+Max relative delta  : 167.46% on branch_147 (|delta|: 248.226024)
+Mean |delta|        : 0.271129
+RMS delta           : 6.727300
+P50 |delta|         : 0.000000
+P90 |delta|         : 0.000000
+P95 |delta|         : 0.000015
+P99 |delta|         : 0.016964
+
+Severe Differences (Top 6)
+----------------------------------------------------------------------------------------------------
+Rank    Asset                             Case A          Case B           Delta         |Delta|
+----------------------------------------------------------------------------------------------------
+1       branch_147                   -148.226024      100.000000     +248.226024      248.226024
+2       branch_143                    -47.316934      100.000000     +147.316934      147.316934
+3       branch_1409                   100.000000       42.857143      +57.142857       57.142857
+4       branch_146                     50.450450      100.000000      +49.549550       49.549550
+5       branch_144                   -124.113012     -155.263158      +31.150146       31.150146
+6       branch_589                     99.518579       97.423673       +2.094906        2.094906
+----------------------------------------------------------------------------------------------------
+
+Metric              : q_loss_percent
+Match               : NO
+Description         : Branch Reactive Loss Percentage
+Unit                : %
+Compared count      : 1989
+Mismatch count      : 5
+Severe count        : 4
+Tolerance           : 0.010000
+Severity threshold  : 1.000000
+Max |delta|         : 98.837864 on branch_147 (relative delta: 98.84%)
+Max relative delta  : 98.84% on branch_147 (|delta|: 98.837864)
+Mean |delta|        : 0.123943
+RMS delta           : 2.926782
+P50 |delta|         : 0.000000
+P90 |delta|         : 0.000000
+P95 |delta|         : 0.000000
+P99 |delta|         : 0.000000
+
+Severe Differences (Top 4)
+----------------------------------------------------------------------------------------------------
+Rank    Asset                             Case A          Case B           Delta         |Delta|
+----------------------------------------------------------------------------------------------------
+1       branch_147                     -1.162136     -100.000000      +98.837864       98.837864
+2       branch_146                    -50.450450     -100.000000      +49.549550       49.549550
+3       branch_143                    -50.515845     -100.000000      +49.484155       49.484155
+4       branch_144                     49.412100        0.779626      +48.632474       48.632474
+----------------------------------------------------------------------------------------------------
+
+System Summary
+----------------------------------------------------------------------------------------------------
+
+Metric                                      Case A            Case B             Delta
+----------------------------------------------------------------------------------------------------
+Generation P (MW)                     74723.137495      74723.137495         +0.000000
+Generation Q (MVAr)                   17621.404649      19445.311785      +1823.907136
+Load P (MW)                           73059.670000      74146.010000      +1086.340000
+Load Q (MVAr)                         13401.440000      13717.190000       +315.750000
+Active losses (MW)                     1663.467495       1663.467495         +0.000000
+Reactive losses (MVAr)                21945.975864      21945.975864         +0.000000
+P balance residual (MW)                  -0.000000      -1086.340000      -1086.340000
+Q balance residual (MVAr)            -17726.011216     -16217.854080      +1508.157136
+
+Voltage Extremes
+Metric                                  Case A                        Case B            
+----------------------------------------------------------------------------------------------------
+Voltage Magnitude Min           0.9819 p.u. @ bus 783         0.9819 p.u. @ bus 783     
+Voltage Magnitude Max           1.1080 p.u. @ bus 177         1.1080 p.u. @ bus 177     
+Voltage Angle Min               -49.9557 deg @ bus 182        -49.9557 deg @ bus 182    
+Voltage Angle Max                8.3486 deg @ bus 16           8.3486 deg @ bus 16      
+
+====================================================================================================
+3. COMPARISON INSIGHTS
+====================================================================================================
+
+Network
+----------------------------------------------------------------------------------------------------
+
+• Network topology is unchanged between the two cases.
+• Ybus topology matches, but numerical admittance values differ, indicating differences in electrical network parameters.
+• The maximum Ybus element difference is 83772.6497.
+• Branch-model comparison identifies 64 branches with parameter differences.
+
+System
+----------------------------------------------------------------------------------------------------
+
+• Total active generation changes from 74723.14 MW to 74723.14 MW (+0.00 MW).
+• Total active load changes from 73059.67 MW to 74146.01 MW (+1086.34 MW).
+• Total reactive load changes by +315.75 MVAr.
+• Active-power losses change from 1663.47 MW to 1663.47 MW (+0.00 MW).
+• Reactive-power losses change by +0.00 MVAr.
+• At least one case has a non-negligible active-power balance residual; this should be investigated before interpreting all result differences as physical operating-point changes.
+• At least one case has a non-negligible reactive-power balance residual.
+
+Voltage
+----------------------------------------------------------------------------------------------------
+
+• Voltage magnitudes differ at 0 of 1354 buses (0.0%).
+• 0 buses exceed the configured voltage-magnitude severity threshold (0.0% of compared buses).
+• bus_656 has the largest voltage-magnitude difference of 0.0000 p.u.
+• Voltage-angle differences occur at 0 of 1354 buses (0.0%).
+• bus_114 has the largest voltage-angle difference of 0.0000 degrees.
+
+Generation / Load
+----------------------------------------------------------------------------------------------------
+
+• Generation metric 'p' differs for 126 of 260 compared generators (48.5%).
+• generation_125 has the largest generation 'p' difference of 2543.9375.
+• Generation metric 'q' differs for 125 of 258 compared generators (48.4%).
+• generation_125 has the largest generation 'q' difference of 845.8918.
+• Generation metric 'p_mw/sum(p_mw)' differs for 122 of 260 compared generators (46.9%).
+
+Branch Flows
+----------------------------------------------------------------------------------------------------
+
+• Branch p_from active-power flows differ for 0 of 1991 branches (0.0%).
+• Branch p_to active-power flows differ for 0 of 1991 branches (0.0%).
+• Branch q_from reactive-power flows differ for 0 of 1991 branches (0.0%).
+• Branch q_to reactive-power flows differ for 0 of 1991 branches (0.0%).
+
+====================================================================================================
+4. STATISTICAL INSIGHTS
+====================================================================================================
+
+Overall Comparison Patterns
+----------------------------------------------------------------------------------------------------
+
+• In the model scope, 128 of 15144 metric-value comparisons are mismatches (0.85%).
+• In the power-flow scope, 404 of 23392 metric-value comparisons are mismatches (1.73%).
+
+Model Comparison
+----------------------------------------------------------------------------------------------------
+
+• Branch Resistance has isolated mismatches: 64 of 1991 compared values (3.21%).
+• branch asset 1944 has one of the largest mismatches for Branch Resistance: 0.00123278.
+• branch asset 1103 has one of the largest mismatches for Branch Resistance: 0.000974035.
+• branch asset 1831 has one of the largest mismatches for Branch Resistance: 0.000922086.
+• Branch Resistance has a maximum delta of 0.00123278, at least three times its P95 of 1.0842e-17. The largest difference may be concentrated in a small number of compared values.
+• Branch Reactance has isolated mismatches: 64 of 1991 compared values (3.21%).
+• branch asset 314 has one of the largest mismatches for Branch Reactance: 0.0520524.
+• branch asset 889 has one of the largest mismatches for Branch Reactance: 0.0490494.
+• branch asset 1243 has one of the largest mismatches for Branch Reactance: 0.0488836.
+• Branch Reactance has a maximum delta of 0.0520524, at least three times its P95 of 5.11743e-17. The largest difference may be concentrated in a small number of compared values.
+• branch accounts for 100.0% of the recorded metric-value mismatches in the model scope (128 mismatches across 9955 compared values; mismatch rate 1.29%).
+• Investigate the branch input parameter Branch Resistance: 64 mismatches (3.21% of compared values). Resolve or explain this difference before attributing downstream power-flow differences to operating conditions.
+• Investigate the branch input parameter Branch Reactance: 64 mismatches (3.21% of compared values). Resolve or explain this difference before attributing downstream power-flow differences to operating conditions.
+
+Power-Flow Comparison
+----------------------------------------------------------------------------------------------------
+
+• generation asset 125 has one of the largest mismatches for Generation Active Power: 2543.94.
+• generation asset 0 has one of the largest mismatches for Generation Active Power: 1750.14.
+• generation asset 32 has one of the largest mismatches for Generation Active Power: 1628.95.
+• Generation Active Power has a P95 delta of 1200.03 and a maximum delta of 2543.94. This suggests that some assets have considerably larger differences than most of the dataset.
+• generation asset 125 has one of the largest mismatches for Generation Reactive Power: 845.892.
+• generation asset 23 has one of the largest mismatches for Generation Reactive Power: 510.542.
+• generation asset 73 has one of the largest mismatches for Generation Reactive Power: 395.438.
+• Generation Reactive Power has a P95 delta of 288.38 and a maximum delta of 845.892. This suggests that some assets have considerably larger differences than most of the dataset.
+• generation asset 125 has one of the largest mismatches for Generation Active Power Share: 0.0340448.
+• generation asset 0 has one of the largest mismatches for Generation Active Power Share: 0.0234216.
+• generation asset 32 has one of the largest mismatches for Generation Active Power Share: 0.0217998.
+• Generation Active Power Share has a P95 delta of 0.0160597 and a maximum delta of 0.0340448. This suggests that some assets have considerably larger differences than most of the dataset.
+• Branch Active Loss Percentage has isolated mismatches: 26 of 1989 compared values (1.31%).
+• branch asset 147 has one of the largest mismatches for Branch Active Loss Percentage: 248.226.
+• branch asset 143 has one of the largest mismatches for Branch Active Loss Percentage: 147.317.
+• branch asset 1409 has one of the largest mismatches for Branch Active Loss Percentage: 57.1429.
+• Branch Active Loss Percentage has a maximum delta of 248.226, at least three times its P95 of 1.53625e-05. The largest difference may be concentrated in a small number of compared values.
+• Branch Reactive Loss Percentage has isolated mismatches: 5 of 1989 compared values (0.25%).
+• branch asset 147 has one of the largest mismatches for Branch Reactive Loss Percentage: 98.8379.
+• branch asset 146 has one of the largest mismatches for Branch Reactive Loss Percentage: 49.5496.
+• branch asset 143 has one of the largest mismatches for Branch Reactive Loss Percentage: 49.4842.
+• Branch Reactive Loss Percentage has a maximum delta of 98.8379, at least three times its P95 of 6.48413e-11. The largest difference may be concentrated in a small number of compared values.
+• generation accounts for 92.3% of the recorded metric-value mismatches in the state scope (373 mismatches across 778 compared values; mismatch rate 47.94%).
+
+====================================================================================================
+5. INVESTIGATION PRIORITIES
+====================================================================================================
+
+
+1. branch (impedance) — model parameter mismatch — Branch Resistance in pu; maximum mismatch of 0.001233.

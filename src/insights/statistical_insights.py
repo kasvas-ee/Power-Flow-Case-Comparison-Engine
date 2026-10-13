@@ -232,7 +232,7 @@ def _isolated_vs_widespread(item: dict) -> list[dict]:
     asset = _get_asset_name(item)
     scope = _get_scope(item)
 
-    if percentage <= 5.0:
+    if percentage <= 10.0:
         category = "isolated_mismatches"
         description = "isolated"
 
@@ -414,24 +414,24 @@ def _parameter_specific_patterns(items: list[dict]) -> list[dict]:
 
         metric = _get_metric_name(highest_item)
 
-        findings.append(
-            _make_finding(
-                category="parameter_specific_pattern",
-                message=(
-                    f"{metric} has a higher mismatch rate for "
-                    f"{asset_name} than the other compared "
-                    f"parameters: {highest_rate:.2f}% versus "
-                    f"{other_average:.2f}% average for the others."
-                ),
-                scope=scope,
-                asset_name=asset_name,
-                parameter_name=metric,
-                evidence={
-                    "parameter_mismatch_percent": highest_rate,
-                    "other_parameters_average_percent": other_average,
-                },
-            )
-        )
+        # findings.append(
+        #     _make_finding(
+        #         category="parameter_specific_pattern",
+        #         message=(
+        #             f"{metric} has a higher mismatch rate for "
+        #             f"{asset_name} than the other compared "
+        #             f"parameters: {highest_rate:.2f}% versus "
+        #             f"{other_average:.2f}% average for the others."
+        #         ),
+        #         scope=scope,
+        #         asset_name=asset_name,
+        #         parameter_name=metric,
+        #         evidence={
+        #             "parameter_mismatch_percent": highest_rate,
+        #             "other_parameters_average_percent": other_average,
+        #         },
+        #     )
+        # )
 
     return findings
 
@@ -479,11 +479,9 @@ def _relative_delta_patterns(item: dict) -> list[dict]:
             _make_finding(
                 category="consistent_relative_delta",
                 message=(
-                    f"{metric} has a relatively consistent "
-                    f"relative-delta distribution: median "
-                    f"{median_relative:.2f}% and P95 "
-                    f"{p95_relative:.2f}%. This may indicate "
-                    f"a systematic discrepancy pattern."
+                    f"{metric} has a relatively consistent relative-delta distribution: median "
+                    f"{median_relative:.2f}% and P95 {p95_relative:.2f}%. This may indicate a systematic discrepancy "
+                    f"pattern i.e. a common scaling or modeling issue rather than random variation."
                 ),
                 scope=scope,
                 asset_name=asset,
@@ -725,10 +723,8 @@ def _percentile_patterns(item: dict) -> list[dict]:
         category = "percentile_distribution"
 
         message = (
-            f"{metric} has a P95 delta of {p95:.6g} and a "
-            f"maximum delta of {maximum:.6g}. Consider these "
-            f"alongside the median and P99 to assess how "
-            f"differences are distributed."
+            f"{metric} has a P95 delta of {p95:.6g} and a maximum delta of {maximum:.6g}. "
+            f"This suggests that some assets have considerably larger differences than most of the dataset."
         )
 
     else:

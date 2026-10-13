@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -12,7 +15,7 @@ class ActionResult:
     """
 
     action: str
-    success: bool
+    success: Optional[bool] = False
     result: Optional[Any] = None
     error_type: Optional[str] = None
     error_reason: Optional[str] = None
@@ -87,15 +90,11 @@ class ModelComparisonResult:
     branch: Optional[ComparisonResult] = None
     load: Optional[ComparisonResult] = None
     generation: Optional[ComparisonResult] = None
-    # Enabled model parameter results from the metadata comparator.
+
     metadata_comparisons: List[Dict[str, Any]] = field(default_factory=list)
 
-    asset_counts_a: Dict[str, int] = field(default_factory=dict)
-    asset_counts_b: Dict[str, int] = field(default_factory=dict)
+    top_severe: Dict[str, List[TopSevereResult]] = field(default_factory=dict)
 
-    top_severe: Dict[str, List[TopSevereResult]] = field(
-        default_factory=dict
-    )
 
 @dataclass
 class YbusComparisonResult:
@@ -227,6 +226,9 @@ class PowerFlowComparisonResult:
         default_factory=dict
     )
 
+    # Per-asset-type summaries, separate from individual metric summaries.
+    asset_summaries: Dict[str, Any] = field(default_factory=dict)
+
     system: Optional[SystemSummary] = None
 
     # Enabled solved-state parameter results from the metadata comparator.
@@ -310,3 +312,24 @@ def build_report(
         statistical_insights=statistical_insights,
         investigation_priorities=investigation_priorities
     )
+
+
+@dataclass(frozen=True)
+class MetricDefinition:
+    scope: str
+    source: str
+    asset_name: str
+    asset_id: str
+    parameter_name: str
+    parameter_id: str
+    enabled: bool
+    comparison: str
+    tolerance: float
+    severe_threshold: float | None
+    unit: str | None
+    display_name: str
+    match_strategy: str | None
+
+    @property
+    def is_derived(self) -> bool:
+        return self.source == "derived"

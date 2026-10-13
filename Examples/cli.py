@@ -1,6 +1,6 @@
 import argparse
 
-from Examples.example import Example, list_examples
+from examples.Main import Example, list_examples
 
 
 def build_parser():
@@ -47,7 +47,7 @@ def build_parser():
     # ------------------------------------------------------------------
     list_parser = subparsers.add_parser(
         "list",
-        help="List all available examples"
+        help="List all available Examples"
     )
 
     list_parser.set_defaults(func=list_available_examples)
@@ -68,7 +68,7 @@ def run_example(args):
 
 
 def list_available_examples(args):
-    print("Available examples:")
+    print("Available Examples:")
 
     for example_name in list_examples():
         print(f"  - {example_name}")

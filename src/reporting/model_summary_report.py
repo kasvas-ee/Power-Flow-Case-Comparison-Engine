@@ -7,7 +7,6 @@ from src.reporting.formatting import (
     section,
     subsection,
     format_metadata_asset_group,
-    format_ranked_results,
 )
 
 
@@ -69,41 +68,40 @@ def model_summary_report(
     # Asset count comparison
     # --------------------------------------------------------
 
-    asset_counts_a = getattr(
-        getattr(model_comparison, "result", None),
-        "asset_counts_a",
-        {},
-    ) or {}
+    model_result = getattr(model_comparison, "result", None)
 
-    asset_counts_b = getattr(
-        getattr(model_comparison, "result", None),
-        "asset_counts_b",
-        {},
-    ) or {}
+    asset_summaries = {
+        "Bus": getattr(model_result, "bus", None),
+        "Branch": getattr(model_result, "branch", None),
+        "Generation": getattr(model_result, "generation", None),
+        "Load": getattr(model_result, "load", None),
+    }
 
-    lines.extend(
-        subsection("Asset Count Summary")
-    )
-
+    header = "Asset Count Summary"
+    header = header + ": Not computed" if asset_summaries['Load'] is None else header
+    lines.extend(subsection(header))
     lines.append("")
 
-    lines.append(
-        f"{'Asset':<24}"
-        f"{'Case A':>16}"
-        f"{'Case B':>16}"
-    )
-
-    lines.append("-" * 56)
-
-    for asset in ("Bus", "Branch", "Generation", "Load"):
-        count_a = asset_counts_a.get(asset, "N/A")
-        count_b = asset_counts_b.get(asset, "N/A")
-
+    if asset_summaries['Bus']:
         lines.append(
-            f"{asset:<24}"
-            f"{str(count_a):>16}"
-            f"{str(count_b):>16}"
+            f"{'Asset':<24}"
+            f"{'Case A':>16}"
+            f"{'Case B':>16}"
         )
+
+        lines.append("-" * 56)
+
+        for asset in ("Bus", "Branch", "Generation", "Load"):
+            summary = asset_summaries[asset]
+
+            count_a = getattr(summary, "asset_count_a", "N/A")
+            count_b = getattr(summary, "asset_count_b", "N/A")
+
+            lines.append(
+                f"{asset:<24}"
+                f"{str(count_a):>16}"
+                f"{str(count_b):>16}"
+            )
 
     lines.append("")
 
@@ -165,14 +163,16 @@ def model_summary_report(
             f"{format_value(ybus_comparison.result.max_value_diff)}"
         )
 
+        lines.append(f"Unit                : pu")
+
         lines.append(
-            f"Case A Ybus Shape   : "
-            f"{ybus_comparison.result.shape_a or 'N/A'}"
+            f"Bus count in Case A : "
+            f"{ybus_comparison.result.shape_a[0] or 'N/A'}"
         )
 
         lines.append(
-            f"Case B Ybus Shape   : "
-            f"{ybus_comparison.result.shape_b or 'N/A'}"
+            f"Bus count in Case B : "
+            f"{ybus_comparison.result.shape_b[0] or 'N/A'}"
         )
 
         if ybus_comparison.result.reason:
@@ -207,6 +207,33 @@ def model_summary_report(
         model_result = getattr(model_comparison, "result", None)
         top_severe = getattr(model_result, "top_severe", {}) or {}
 
+        # Asset-level mismatch statistics from the model comparison.
+        model_asset_summaries = {}
+
+        if model_result is not None:
+            for asset_label in ("Bus", "Branch", "Generation", "Load", "Grid"):
+                asset_result = getattr(
+                    model_result,
+                    asset_label.lower(),
+                    None,
+                )
+
+                if asset_result is not None:
+                    model_asset_summaries[asset_label] = {
+                        "asset_count_a": getattr(
+                            asset_result, "asset_count_a", None
+                        ),
+                        "asset_count_b": getattr(
+                            asset_result, "asset_count_b", None
+                        ),
+                        "mismatch_asset_count": getattr(
+                            asset_result, "mismatch_asset_count", None
+                        ),
+                        "mismatch_asset_percentage": getattr(
+                            asset_result, "mismatch_asset_percentage", None
+                        ),
+                    }
+
         for asset_key, asset_label in asset_order:
             entries = groups.get(asset_key, [])
 
@@ -217,8 +244,9 @@ def model_summary_report(
                 format_metadata_asset_group(
                     entries,
                     asset_label,
-                    metric_name_keys=("parameter_id", "parameter_name", "display_name"),
+                    metric_name_keys=("parameter_name", "display_name", "parameter_id"),
                     top_severe=top_severe,
+                    asset_summary=model_asset_summaries.get(asset_label),
                 )
             )
 

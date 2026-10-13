@@ -84,6 +84,7 @@ def test_state_metadata_adapter_runs_net_and_derived_metrics(tmp_path):
          'unit': '%', 'display_name': 'Generation Share'},
     ])
     path = tmp_path / 'metrics.csv'
+    definitions = load_metric_definitions(path)
     metrics.to_csv(path, index=False)
 
     net_a = {
@@ -94,7 +95,7 @@ def test_state_metadata_adapter_runs_net_and_derived_metrics(tmp_path):
         'res_bus': pd.DataFrame({'vm_pu': [1.0, 0.98]}, index=[10, 20]),
         'res_gen': pd.DataFrame({'p_mw': [50.0, 50.0]}, index=[0, 1]),
     }
-    results = run_metadata_comparisons((net_a, net_b), (None, None), path, scope='state')
+    results = run_metadata_comparisons((net_a, net_b), (None, None), definitions, scope='state')
     by_name = {r['parameter_name']: r for r in results}
     assert by_name['vm_pu']['status'] == 'MISMATCH'
     assert by_name['vm_pu']['statistics']['mismatch_count'] == 1
