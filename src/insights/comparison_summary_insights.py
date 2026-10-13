@@ -277,7 +277,7 @@ def _generate_network_insights(
 
                 insights.append(
                     "Branch-model comparison identifies "
-                    f"{branch.mismatch_count} branches with "
+                    f"{branch.mismatch_asset_count} branches with "
                     "parameter differences."
                 )
 
@@ -1075,6 +1075,10 @@ def generate_insights(
     # --------------------------------------------------------
     # Stop state interpretation if results aren't comparable
     # --------------------------------------------------------
+    if results_match:
+        result["system"].append("Solved power-flow results were are an exact match.")
+
+        return result
 
     if not results_comparable:
 

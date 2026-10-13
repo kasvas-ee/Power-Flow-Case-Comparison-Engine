@@ -12,10 +12,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from src.comparison.metadata_comparator import (
-    MetricDefinition, SafeFormula, compare_scope_asset, group_definitions,
-    load_metric_definitions,
-)
+from src.comparison.metadata_comparator import MetricDefinition, SafeFormula, compare_scope_asset, group_definitions
+
 from src.comparison.result_structures import TopSevereResult
 from src.logger import logger
 
@@ -105,28 +103,30 @@ def _extract_direct(definition: MetricDefinition, case: dict[str, Any]) -> tuple
     raise KeyError(f"Unsupported direct source {source!r}")
 
 
-def _asset_arrays(definitions: list[MetricDefinition], case: dict[str, Any]) -> tuple[dict[str, np.ndarray], np.ndarray]:
+def _asset_arrays(definitions, case):
     """Build formula namespace from columns in the corresponding asset table."""
+    reqd_params = [definition.parameter_id for definition in definitions]
     first = definitions[0]
     if first.source in {"net", "derived"}:
         # Derived parameters share the asset table declared by asset ID.
         table = _net_table(case["net"], first)
+        reqd_params = np.intersect1d(reqd_params, table.columns)  # to avoid derived params
+        table = table[reqd_params]
         values = {str(c): table[c].to_numpy(copy=False) for c in table.columns}
         # DataFrame index is a stable reporting ID when canonicalization aligned rows.
-        return values, table.index.to_numpy(copy=False)
+        return values, np.asarray(list(range(len(table))))
     if first.source == "ppc":
+        # a dict {k:v} of k: parameter (i.e.metric) and v: its values and a list of seq numbers as indices
         ppc = case["ppc"]
-        table_name = PPC_ASSET_TABLE.get(first.asset_name)
-        if table_name is None:
+        asset_table_name = PPC_ASSET_TABLE.get(first.asset_name)
+        if asset_table_name is None:
             raise KeyError(f"No PPC table mapping for asset {first.asset_name!r}")
-        table = ppc[table_name]
-        values = {key: table[:, col] for key, col in PPC_COLUMNS[table_name].items() if col < table.shape[1]}
-        ids_col = 0
-        ids = table[:, ids_col]
-        if first.asset_name == "load":
-            bus = ppc["bus"]
-            mask = (bus[:, 2] != 0) | (bus[:, 3] != 0)
-            ids = ids[mask]
+        asset_table_contents = ppc[asset_table_name]
+        ids = np.asarray(list(range(len(asset_table_contents))))  # TODO: Actual IDs to be implemented in the future
+        reqd_params = [definition.parameter_id for definition in definitions]  # PPC_COLUMNS[asset_table_name]
+        reqd_params = {k: PPC_COLUMNS[asset_table_name][k] for k in reqd_params if k in PPC_COLUMNS[asset_table_name]}
+        values = {key: asset_table_contents[:, col] for key, col in reqd_params.items() if
+                  col < asset_table_contents.shape[1]}
         return values, ids
     raise KeyError(f"Unsupported source {first.source!r}")
 
@@ -139,41 +139,34 @@ def rank_metadata(results, top_n):
         severe_mask = item.get("severe_mask")
         if delta is None or severe_mask is None:
             continue
-        delta = np.asarray(delta, dtype=float).reshape(-1)
-        mask = np.asarray(severe_mask, dtype=bool).reshape(-1)
-        if len(delta) != len(mask) or not mask.any():
-            continue
-        indices = np.flatnonzero(mask & np.isfinite(delta))
+        indices = np.flatnonzero(severe_mask & np.isfinite(delta))
         if not len(indices):
             continue
         order = indices[np.argsort(np.abs(delta[indices]))[::-1][:top_n]]
         a = np.asarray(item.get("case_a")).reshape(-1)
         b = np.asarray(item.get("case_b")).reshape(-1)
-        ids = item.get("asset_ids")
-        ids = np.arange(len(delta)) if ids is None else np.asarray(ids).reshape(-1)
         asset_name = str(item.get("asset_name", "Asset"))
         raw_parameter = str(item.get("parameter_id") or item.get("parameter_name")).lower()
 
         key = f"{asset_name}_{PARAMETER_ALIASES.get(raw_parameter, raw_parameter)}"
-        ranked[key] = [TopSevereResult(
-            rank=rank, asset=f"{asset_name}_{ids[i] if i < len(ids) else i}",
-            value_a=float(a[i]) if i < len(a) and np.isfinite(a[i]) else None,
-            value_b=float(b[i]) if i < len(b) and np.isfinite(b[i]) else None,
-            delta=float(delta[i]), abs_delta=float(abs(delta[i]))) for rank, i in enumerate(order, 1)]
+        ranked[key] = [TopSevereResult(rank=rank, asset=f"{asset_name}_{i}", value_a=float(a[i]), value_b=float(b[i]),
+                                       delta=float(delta[i]), abs_delta=float(abs(delta[i]))
+                                       ) for rank, i in enumerate(order, 1)]
     return ranked
 
 
 def run_metadata_comparisons(
-    cases: tuple[Any, Any],
-    ppcs: tuple[dict[str, Any], dict[str, Any]],
-    metrics_path: str | Path,
-    scope: str,
-    skip_assets: set[str] | None = None,
-    report_all_mismatches: bool = False,
-) -> list[dict[str, Any]]:
+    cases,
+    ppcs,
+    metrics,
+    scope,
+    skip_assets={},
+    report_all_mismatches=False,
+    enable_multiprocessing=False
+):
     """Run enabled metadata comparisons for one scope, preserving NOT PERFORMED rows."""
     definitions = [
-        d for d in load_metric_definitions(metrics_path)
+        d for d in metrics
         if d.scope == scope
     ]
 
@@ -186,12 +179,6 @@ def run_metadata_comparisons(
             for d in definitions
         ]
 
-    # Skip selected assets when requested.
-    skip_assets = {
-        asset.strip().lower()
-        for asset in (skip_assets or set())
-    }
-
     skipped_definitions = [
         d for d in definitions
         if d.asset_name.strip().lower() in skip_assets
@@ -202,9 +189,8 @@ def run_metadata_comparisons(
         if d.asset_name.strip().lower() not in skip_assets
     ]
 
-    groups = group_definitions(definitions)
-
-    output: list[dict[str, Any]] = [
+    # Set 'NOT PERFORMED' as status for Bus and Branch if skipped
+    output = [
         {
             "scope": d.scope,
             "asset_name": d.asset_name,
@@ -226,16 +212,18 @@ def run_metadata_comparisons(
         for d in skipped_definitions
     ]
 
+    case_payloads = {
+        "a": {"net": cases[0], "ppc": ppcs[0]},
+        "b": {"net": cases[1], "ppc": ppcs[1]},
+    }
+
+    # In sequential run, group definitions by asset type and compute statistics for 1 group at a time
+    groups = group_definitions(definitions)
+
     for (_scope, _asset), group in groups.items():
-        # The current adapter assumes all enabled parameters in a group address
-        # the same source table, which is how the metadata is organized.
-        case_payloads = {
-            "a": {"net": cases[0], "ppc": ppcs[0]},
-            "b": {"net": cases[1], "ppc": ppcs[1]},
-        }
         try:
-            namespace_a, ids_a = _asset_arrays(group, case_payloads["a"])
-            namespace_b, ids_b = _asset_arrays(group, case_payloads["b"])
+            table_values_a, ids_a = _asset_arrays(group, case_payloads["a"])
+            table_values_b, ids_b = _asset_arrays(group, case_payloads["b"])
         except (KeyError, AttributeError, TypeError, ValueError) as exc:
             for definition in group:
                 output.append({"scope": definition.scope, "asset_name": definition.asset_name,
@@ -245,33 +233,8 @@ def run_metadata_comparisons(
                                "case_a": None, "case_b": None, "delta": None, "statistics": {}})
             continue
 
-        def extract(definition: MetricDefinition, case_key: str):
-            payload = case_payloads[case_key]
-            if definition.source == "derived":
-                namespace = namespace_a if case_key == "a" else namespace_b
-                return FORMULA.evaluate(definition.parameter_id, namespace)
-            # Extract the specified field directly. For PPC, the same data are
-            # returned from both sides of this callback; the case key selects PPC.
-            ppc_or_net = payload["ppc"] if definition.source == "ppc" else payload["net"]
-            if definition.source == "ppc":
-                table_name = PPC_ASSET_TABLE.get(definition.asset_name)
-                if definition.asset_name == "grid":
-                    raise KeyError("PPC does not retain a reliable ext_grid-vs-gen row label")
-                table = ppc_or_net[table_name]
-                column = PPC_COLUMNS.get(table_name, {}).get(definition.parameter_id)
-                if column is None:
-                    raise KeyError(f"Unknown PPC {table_name} parameter {definition.parameter_id!r}")
-                values = table[:, column]
-                if definition.asset_name == "load":
-                    bus = ppc_or_net["bus"]
-                    mask = (bus[:, 2] != 0) | (bus[:, 3] != 0)
-                    values = values[mask]
-                return values
-            table = _net_table(ppc_or_net, definition)
-            if definition.parameter_id not in table.columns:
-                raise KeyError(f"Column {definition.parameter_id!r} is missing from {definition.asset_id!r}")
-            return table[definition.parameter_id].to_numpy(copy=False)
-
         ids = ids_a if len(ids_a) == len(ids_b) else None
-        output.extend(compare_scope_asset(group, extract, asset_ids=ids))
+        output.extend(compare_scope_asset(group, table_values_a, table_values_b, asset_ids=ids))
+
+        # TODO: In parallel run, each metric is evaluated individually and metrics are distributed among workers equally
     return output

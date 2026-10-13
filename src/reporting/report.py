@@ -11,7 +11,7 @@ from src.logger import logger
 
 
 def write_reports(config, engine, report):
-    write_comparison_report(report, str(config.output_path) + "/comparison_report.txt")
+    summary, full_text = write_comparison_report(report, str(config.output_path) + "/comparison_report.txt")
 
     # Optional HTML statistical report; never invalidate the base TXT report.
     try:
@@ -39,6 +39,8 @@ def write_reports(config, engine, report):
         except Exception as exc:
             # AI is an optional interpretation layer: never invalidate deterministic outputs.
             logger.exception("AI insight generation failed; deterministic reports remain available: %s", exc)
+
+    return summary, full_text
 
 
 def write_comparison_report(
@@ -97,7 +99,7 @@ def write_comparison_report(
     )
 
     lines.append(
-        f"Validation          : "
+        f"Validation Passed   : "
         f"{format_bool(report.validation.is_valid)}"
     )
 
@@ -113,6 +115,8 @@ def write_comparison_report(
     )
 
     lines.append("")
+
+    summary = lines.copy()
 
     # ========================================================
     # Model summary
@@ -187,4 +191,4 @@ def write_comparison_report(
         encoding="utf-8",
     )
 
-    return report_text
+    return summary, report_text

@@ -60,6 +60,161 @@ def _asset_name(item: dict) -> str:
     return str(item.get("asset_name") or "asset")
 
 
+def _field(value: Any, key: str, default: Any = None) -> Any:
+    """Read a field from either a mapping or an object."""
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+
+def _canonical_asset_name(value: Any) -> str:
+    """Normalize asset labels so summary keys and metric labels can be matched."""
+    return "".join(ch.casefold() for ch in str(value or "") if ch.isalnum())
+
+
+def _find_asset_summary(summaries: Any, asset_name: str) -> Any:
+    """Find an asset summary by exact or normalized asset-type name."""
+    if summaries is None:
+        return None
+    if isinstance(summaries, dict):
+        if asset_name in summaries:
+            return summaries[asset_name]
+        target = _canonical_asset_name(asset_name)
+        for key, value in summaries.items():
+            if _canonical_asset_name(key) == target:
+                return value
+        return None
+
+    # Some result containers expose asset summaries as attributes.
+    direct = _field(summaries, asset_name, None)
+    if direct is not None:
+        return direct
+    target = _canonical_asset_name(asset_name)
+    for key in dir(summaries):
+        if key.startswith("_") or _canonical_asset_name(key) != target:
+            continue
+        return getattr(summaries, key, None)
+    return None
+
+
+def _model_asset_summary(report: Any, asset_name: str) -> Any:
+    """Get the per-asset model summary without recalculating statistics."""
+    comparison = _unwrap_comparison(_field(report, "model_comparison", None))
+    return _find_asset_summary(comparison, asset_name)
+
+
+def _state_asset_summary(report: Any, asset_name: str) -> Any:
+    """Get the per-asset power-flow summary without recalculating statistics."""
+    comparison = _unwrap_comparison(_field(report, "power_flow_comparison", None))
+    summaries = _field(comparison, "asset_summaries", None)
+    if summaries is None:
+        # Support result containers where summaries are one level deeper.
+        nested = _field(comparison, "result", None)
+        summaries = _field(nested, "asset_summaries", None)
+    return _find_asset_summary(summaries, asset_name)
+
+
+def _asset_summary_badges(summary: Any, scope: str) -> str:
+    """Format precomputed asset-level mismatch counts and percentages."""
+    if summary is None:
+        return "<span class='badge info'>Asset mismatch summary unavailable</span>"
+
+    mismatch_count = _field(summary, "mismatch_asset_count", None)
+    mismatch_pct = _field(summary, "mismatch_asset_percentage", None)
+    badges = []
+
+    if scope == "model":
+        count_a = _field(summary, "asset_count_a", None)
+        count_b = _field(summary, "asset_count_b", None)
+        if count_a is not None:
+            badges.append(
+                f"<span class='badge info'>Case A assets: {_safe(count_a)}</span>"
+            )
+        if count_b is not None:
+            badges.append(
+                f"<span class='badge info'>Case B assets: {_safe(count_b)}</span>"
+            )
+
+    if mismatch_count is not None:
+        badges.append(
+            f"<span class='badge mid'>Assets mismatched: {_safe(mismatch_count)}</span>"
+        )
+    if mismatch_pct is not None:
+        badges.append(
+            f"<span class='badge high'>Asset mismatch rate: {_percent(mismatch_pct)}</span>"
+        )
+    if not badges:
+        badges.append("<span class='badge info'>Asset mismatch summary unavailable</span>")
+    return "".join(badges)
+
+
+def _asset_group_card(
+    asset_name: str,
+    items: list[dict],
+    findings_for_item: Any,
+    scope: str,
+    report: Any,
+    start_index: int,
+) -> str:
+    """Render one expandable asset-type block containing collapsed metric cards."""
+    summary = (
+        _model_asset_summary(report, asset_name)
+        if scope == "model"
+        else _state_asset_summary(report, asset_name)
+    )
+    metric_html = "".join(
+        _metric_card(item, findings_for_item(item), start_index + offset)
+        for offset, item in enumerate(items)
+    )
+    summary_badges = _asset_summary_badges(summary, scope)
+    group_id = f"{scope}-asset-{start_index}"
+    parameter_label = "parameter" if len(items) == 1 else "parameters"
+
+    return f"""
+    <details class="asset-group" id="{html.escape(group_id, quote=True)}"
+             data-asset="{html.escape(asset_name.casefold(), quote=True)}">
+      <summary>
+        <div class="asset-heading">
+          <div class="asset-title">{html.escape(asset_name)}</div>
+          <div class="asset-subtitle">{len(items)} {parameter_label} · Expand to inspect individual metrics</div>
+        </div>
+        <div class="badges">{summary_badges}</div>
+      </summary>
+      <div class="asset-body">{metric_html}</div>
+    </details>
+    """
+
+
+def _render_asset_groups(
+    items: list[dict],
+    findings_for_item: Any,
+    scope: str,
+    report: Any,
+    start_index: int = 1,
+) -> str:
+    """Group metric cards by asset type while preserving their original order."""
+    grouped: dict[str, list[dict]] = {}
+    for item in items:
+        asset_name = _asset_name(item)
+        grouped.setdefault(asset_name, []).append(item)
+
+    rendered = []
+    index = start_index
+    for asset_name, group_items in grouped.items():
+        rendered.append(
+            _asset_group_card(
+                asset_name=asset_name,
+                items=group_items,
+                findings_for_item=findings_for_item,
+                scope=scope,
+                report=report,
+                start_index=index,
+            )
+        )
+        index += len(group_items)
+    return "".join(rendered)
+
+
 def _asset_count_label(stats: dict) -> str:
     affected = stats.get("affected_asset_count")
     total = stats.get("asset_count")
@@ -155,26 +310,31 @@ def _direction_rows(item: dict) -> list[tuple[str, Any]]:
     return rows
 
 
-def _findings_by_metric(findings: dict) -> tuple[dict[str, list[dict]], list[dict]]:
-    by_metric: dict[str, list[dict]] = {}
+def _findings_by_metric(findings):
+    model_by_metric: dict[str, list[dict]] = {}
+    flow_by_metric: dict[str, list[dict]] = {}
     overall = []
-    for scope in ("model", "power_flow"):
+    targets = {
+        "model": model_by_metric,
+        "power_flow": flow_by_metric,
+    }
+    for scope, target in targets.items():
         for finding in findings.get(scope, []) or []:
             if not isinstance(finding, dict):
                 finding = {"message": str(finding), "category": "general"}
             key = str(finding.get("parameter_name") or "")
             if key:
-                by_metric.setdefault(key.casefold(), []).append(finding)
+                target.setdefault(key.casefold(), []).append(finding)
             else:
                 overall.append(finding)
     overall.extend(f for f in (findings.get("overall", []) or []) if isinstance(f, dict))
-    return by_metric, overall
+    return model_by_metric, flow_by_metric, overall
 
 
 def _category_label(category: Any) -> tuple[str, str]:
     category = str(category or "general")
     labels = {
-        "isolated_mismatches": ("Localized mismatches", "mid"),
+        "isolated_mismatches": ("Concentrated mismatches", "mid"),
         "widespread_mismatches": ("Widespread mismatches", "high"),
         "percentile_outlier_pattern": ("Extreme outlier pattern", "high"),
         "percentile_distribution": ("Distribution pattern", "mid"),
@@ -233,7 +393,7 @@ def _metric_card(item: dict, findings: list[dict], index: int) -> str:
       <summary><div><div class='metric-title'>{html.escape(name)}</div><div class='metric-subtitle'>{html.escape(_asset_name(item))} · { _safe(mismatches) } / {_safe(count)} mismatches</div></div><div class='badges'><span class='badge {badge_class}'>{_percent(pct)} mismatch rate</span><span class='badge info'>{html.escape(unit or 'unit not specified')}</span></div></summary>
       <div class='metric-body'><div class='metric-grid'>
         <section><h3>Statistical summary</h3><div class='table-wrap'><table class='stats'><tbody>{stat_rows}</tbody></table></div></section>
-        <section><h3>Largest differences</h3>{top_html}{direction_html}</section>
+        <section><h3>Largest differences (Outliners)</h3>{top_html}{direction_html}</section>
       </div>{findings_html}</div></details>"""
 
 
@@ -249,7 +409,7 @@ def _overall_cards(items: list[dict], label: str) -> str:
 def _legend_html() -> str:
     entries = [
         ("Extreme outlier pattern", "The maximum is much larger than P95 (in this engine, often at least 3× P95). Example: P95 = 2 units and max = 10 units. The largest difference may be concentrated in a few values; inspect the top assets and verify source values/units."),
-        ("Localized mismatches", "A small share of compared values mismatch (the generator classifies ≤5% as isolated). Example: 10 mismatches out of 411 = 2.43%. Check the specific affected assets first."),
+        ("Concentrated mismatches", "A small share of compared values mismatch (the generator classifies ≤10% as isolated). Example: 10 mismatches out of 411 = 2.43%. Check the specific affected assets first."),
         ("Widespread mismatches", "A large share of values mismatch (the generator classifies ≥50% as widespread). Example: 69 of 69 values = 100%. Check shared assumptions, case setup, conventions, or broad operating-state differences before treating each item separately."),
         ("P95 exceeds tolerance", "The 95th-percentile absolute delta is above the configured mismatch tolerance. Differences are not limited to just one maximum; inspect mismatch rate and affected assets, then compare the configured tolerance and units."),
         ("Heavy upper tail", "P95 is much larger than the median, or P99 is much larger than P95. Example: median = 1, P95 = 8, P99 = 30. A subset of values has much larger differences; inspect the distribution and ranked assets."),
@@ -268,6 +428,33 @@ def _styles() -> str:
     return r"""
 :root{--ink:#182230;--muted:#64748b;--line:#e2e8f0;--canvas:#f4f7fb;--blue:#2563eb;--blue-soft:#eff6ff;--red:#b42318;--red-soft:#fef3f2;--amber:#92400e;--amber-soft:#fffaeb;--green:#166534;--green-soft:#f0fdf4}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.55 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.hero{background:linear-gradient(120deg,#10283f,#1e4970);color:white;padding:34px max(22px,calc((100vw - 1180px)/2))}.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:11px;font-weight:800;color:#b9d8f5}h1{font-size:clamp(28px,4vw,40px);line-height:1.12;margin:8px 0;letter-spacing:-.035em}.hero p{margin:0;color:#e2edf8;max-width:800px}.layout{max-width:1180px;margin:24px auto 60px;padding:0 20px;display:grid;grid-template-columns:205px minmax(0,1fr);gap:22px;align-items:start}nav{position:sticky;top:18px;background:white;border:1px solid var(--line);border-radius:14px;padding:15px}nav h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 9px}nav a{display:block;padding:8px;border-radius:8px;color:#334155;text-decoration:none;font-size:13px}nav a:hover{background:var(--blue-soft)}main{min-width:0}.section{margin-bottom:28px;scroll-margin-top:20px}.section-heading{margin-bottom:13px}.section-heading h2{font-size:23px;letter-spacing:-.025em;margin:0}.section-heading p,.muted{color:var(--muted);font-size:13px;margin:3px 0 0}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card,.metric,.panel{background:white;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 7px #0f172a08}.card{padding:17px}.label{color:var(--muted);font-size:12px;font-weight:650}.value{font-size:28px;font-weight:800;letter-spacing:-.04em;margin:4px 0}.sub{color:var(--muted);font-size:12px;margin:3px 0}.callout{margin-top:14px;padding:16px 18px;border-radius:12px;background:white;border:1px solid var(--line);border-left:4px solid var(--blue)}.callout p{margin:0;color:#475569}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 12px}input{flex:1;min-width:180px;border:1px solid #cbd5e1;border-radius:9px;padding:10px 12px;font:inherit}button{cursor:pointer;border:1px solid #cbd5e1;background:white;border-radius:9px;padding:9px 12px;color:#334155;font-weight:650}.metric{margin-bottom:13px;overflow:hidden}.metric summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px}.metric summary::-webkit-details-marker{display:none}.metric summary:after{content:"＋";font-size:20px;color:var(--muted)}.metric[open] summary:after{content:"−"}.metric-title{font-size:16px;font-weight:780}.metric-subtitle{color:var(--muted);font-size:12px;margin-top:2px}.badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.badge{display:inline-block;font-size:11px;font-weight:750;border-radius:999px;padding:4px 8px;white-space:nowrap;margin:1px}.badge.high{color:var(--red);background:var(--red-soft)}.badge.mid{color:var(--amber);background:var(--amber-soft)}.badge.low{color:var(--green);background:var(--green-soft)}.badge.info{color:#1e40af;background:var(--blue-soft)}.metric-body{padding:0 18px 18px;border-top:1px solid #edf1f5}.metric-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:15px}h3{margin:0 0 9px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#475569}table{border-collapse:collapse;width:100%;font-size:13px}th{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#f8fafc}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #edf1f5;vertical-align:top}td:last-child{text-align:right;font-variant-numeric:tabular-nums}tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}.table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto}.stats th{width:58%;text-transform:none;letter-spacing:0;font-size:12px;font-weight:550;background:white}.stats td{font-weight:650;color:#172b42}.finding-list{margin-top:18px;padding:14px 15px;background:#f8fafc;border-radius:10px}.finding-list ul{margin:0;padding-left:20px}.finding-list li{margin:10px 0;color:#475569}.legend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.legend-item{background:white;border:1px solid var(--line);border-radius:12px;padding:15px}.legend-item h3{color:var(--ink);margin-bottom:5px}.legend-item p{margin:0;color:#475569;font-size:13px}.footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-size:12px}@media(max-width:850px){.layout{grid-template-columns:1fr}nav{position:static}nav div{display:grid;grid-template-columns:repeat(2,1fr)}.cards,.metric-grid,.legend-grid{grid-template-columns:1fr}}@media print{body{background:white}.hero{padding:22px;print-color-adjust:exact}.layout{display:block;max-width:none;margin:12px 0;padding:0}nav,.toolbar,button{display:none!important}.metric{break-inside:avoid;box-shadow:none}.metric:not([open]) .metric-body{display:block}.metric summary:after{display:none}.cards{grid-template-columns:repeat(2,1fr)}.legend-grid{grid-template-columns:repeat(2,1fr)}a{color:inherit}}
+
+/* Expandable asset-type parent blocks */
+.asset-group{margin-bottom:14px;background:white;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 7px #0f172a08;overflow:hidden}
+.asset-group:last-child{margin-bottom:0}
+.asset-group>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px}
+.asset-group>summary::-webkit-details-marker{display:none}
+.asset-group>summary:after{content:"＋";font-size:20px;color:var(--muted);flex-shrink:0}
+.asset-group[open]>summary:after{content:"−"}
+.asset-heading{min-width:0;flex:1}
+.asset-title{font-size:16px;font-weight:800;overflow-wrap:anywhere}
+.asset-subtitle{color:var(--muted);font-size:12px;margin-top:3px}
+.asset-group>summary .badges{flex-shrink:0;justify-content:flex-end}
+.asset-body{padding:14px 18px 5px;border-top:1px solid #edf1f5;background:#fcfdff}
+.asset-body>.metric{margin-bottom:10px}
+.asset-body>.metric:last-child{margin-bottom:8px}
+@media(max-width:650px){
+.asset-group>summary{align-items:flex-start;flex-direction:column;gap:8px}
+.asset-group>summary:after{align-self:flex-end;margin-top:-4px}
+.asset-group>summary .badges{flex-shrink:1;justify-content:flex-start}
+.asset-body{padding:12px 14px 5px}
+}
+@media print{
+.asset-group{break-inside:avoid;box-shadow:none}
+.asset-group:not([open])>.asset-body{display:block}
+.asset-group>summary:after{display:none}
+.asset-body>.metric:not([open])>.metric-body{display:block}
+}
 """
 
 
@@ -284,7 +471,7 @@ def generate_statistical_insights_html(report: Any, output_path: str | Path) -> 
     findings = getattr(report, "statistical_insights", None) or {}
     model_items = _items(getattr(report, "model_comparison", None))
     flow_items = _items(getattr(report, "power_flow_comparison", None))
-    by_metric, overall_findings = _findings_by_metric(findings)
+    model_by_metric, state_by_metric, overall_findings = _findings_by_metric(findings)
 
     # Findings carry parameter_name; match them against the metric display/name.
     def relevant(item: dict) -> list[dict]:
@@ -294,13 +481,18 @@ def generate_statistical_insights_html(report: Any, output_path: str | Path) -> 
             str(item.get("parameter_id") or "").casefold(),
         }
         matched = []
+        by_metric = model_by_metric if item['scope'] == 'model' else state_by_metric
         for key, group in by_metric.items():
             if key in names:
                 matched.extend(group)
         return matched
 
-    model_cards = "".join(_metric_card(item, relevant(item), i + 1) for i, item in enumerate(model_items))
-    flow_cards = "".join(_metric_card(item, relevant(item), i + 1 + len(model_items)) for i, item in enumerate(flow_items))
+    model_cards = _render_asset_groups(
+        model_items, relevant, "model", report, start_index=1
+    )
+    flow_cards = _render_asset_groups(
+        flow_items, relevant, "power_flow", report, start_index=1 + len(model_items)
+    )
     overall_html = "".join(
         f"<li><span class='badge info'>{html.escape(_category_label(f.get('category'))[0])}</span> {html.escape(str(f.get('message') or f.get('description') or ''))}</li>"
         for f in overall_findings
@@ -316,12 +508,12 @@ def generate_statistical_insights_html(report: Any, output_path: str | Path) -> 
 <div class='layout'><nav aria-label='Report navigation'><h2>On this page</h2><div><a href='#overview'>01 · Overview</a><a href='#overall'>02 · Overall patterns</a><a href='#model'>03 · Model comparison</a><a href='#power-flow'>04 · Power-flow comparison</a><a href='#legend'>05 · Legend & investigation tips</a></div></nav><main>
 <section id='overview' class='section'><div class='section-heading'><h2>Overall comparison</h2><p>Aggregated counts across the available metric-value comparisons.</p></div><div class='cards'>{model_summary}{flow_summary}</div><div class='callout'><strong>How to use this report</strong><p>Start with mismatch rates, then examine each metric's distribution and largest affected assets. A statistical pattern is a signal to investigate, not by itself proof of a root cause.</p></div></section>
 <section id='overall' class='section'><div class='section-heading'><h2>Overall comparison patterns</h2><p>Cross-metric observations generated by the statistical insight engine.</p></div><div class='panel' style='padding:16px 18px'><ul>{overall_html}</ul></div></section>
-<section id='model' class='section'><div class='section-heading'><h2>Model comparison</h2><p>Model parameters grouped into expandable metric cards.</p></div><div class='toolbar'><input id='metricSearch' type='search' placeholder='Filter metrics or asset types…' aria-label='Filter metrics'><button id='expandAll' type='button'>Expand all</button><button id='collapseAll' type='button'>Collapse all</button></div>{model_cards_html}</section>
-<section id='power-flow' class='section'><div class='section-heading'><h2>Power-flow comparison</h2><p>Operating-state results with units, tolerances, signed direction, and asset-level deltas where available.</p></div>{flow_cards_html}</section>
+<section id='model' class='section'><div class='section-heading'><h2>Model comparison</h2><p>Parameters are grouped by asset type. Expand an asset type to inspect its individual parameter details.</p></div><div class='toolbar'><input id='metricSearch' type='search' placeholder='Filter metrics or asset types…' aria-label='Filter metrics'><button id='expandAll' type='button'>Expand all</button><button id='collapseAll' type='button'>Collapse all</button></div>{model_cards_html}</section>
+<section id='power-flow' class='section'><div class='section-heading'><h2>Power-flow comparison</h2><p>Results are grouped by asset type, with mismatch counts and percentages plus expandable parameter details.</p></div>{flow_cards_html}</section>
 {_legend_html()}
 <div class='footer'>Generated from the existing ComparisonReport object. Comparison values and statistics are taken from the comparison engine; this module formats the results for HTML and does not change comparison logic.</div>
 </main></div><script>
-const search=document.getElementById('metricSearch');const cards=Array.from(document.querySelectorAll('details.metric'));search.addEventListener('input',()=>{{const q=search.value.trim().toLowerCase();cards.forEach(c=>{{c.hidden=!!q&&!c.innerText.toLowerCase().includes(q)&&!c.dataset.search.includes(q)}})}});document.getElementById('expandAll').addEventListener('click',()=>cards.forEach(c=>{{if(!c.hidden)c.open=true}}));document.getElementById('collapseAll').addEventListener('click',()=>cards.forEach(c=>c.open=false));
+const search=document.getElementById('metricSearch');const modelSection=document.getElementById('model');const modelGroups=Array.from(modelSection.querySelectorAll('details.asset-group'));const modelCards=Array.from(modelSection.querySelectorAll('details.metric'));search.addEventListener('input',()=>{{const q=search.value.trim().toLowerCase();modelCards.forEach(c=>{{c.hidden=!!q&&!c.innerText.toLowerCase().includes(q)&&!c.dataset.search.includes(q)}});modelGroups.forEach(g=>{{const children=Array.from(g.querySelectorAll('details.metric'));const visible=children.some(c=>!c.hidden);g.hidden=!!q&&!visible;if(q&&visible)g.open=true}})}});document.getElementById('expandAll').addEventListener('click',()=>modelSection.querySelectorAll('details').forEach(d=>{{if(!d.hidden)d.open=true}}));document.getElementById('collapseAll').addEventListener('click',()=>modelSection.querySelectorAll('details').forEach(d=>d.open=false));
 </script></body></html>"""
 
     destination = Path(output_path)

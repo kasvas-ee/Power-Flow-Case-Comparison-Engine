@@ -5,15 +5,10 @@
 from src.logger import logger, setup_logging
 from src.config import process_config
 from src.canonicalization.parser import canonicalize_cases
-from src.comparison.model_checker import (
-    match_model,
-    validate_model_comparison,
-    determine_results_comparability,
-    determine_model_match
-)
-from src.comparison.result_checker import run_power_flow_comparison
+from src.comparison.model_checker import match_model, determine_model_match
+from src.comparison.state_checker import run_power_flow_comparison
 from src.comparison.result_structures import ValidationResult, build_report
-from src.comparison.result_checker import results_match_from_metadata
+from src.comparison.result_checker import results_match_from_metadata, populate_state_asset_summaries
 from src.insights.comparison_summary_insights import generate_insights, generate_investigation_priorities
 from src.insights.statistical_insights import generate_statistical_insights
 from src.reporting.report import write_reports
@@ -26,7 +21,7 @@ class CaseDiffEngine:
 
     def compare(self):
         """
-        Orchistrator
+        Engine Orchistrator
         """
 
         # -----------------------------------------------------
@@ -40,27 +35,20 @@ class CaseDiffEngine:
         # 2. Compare network/model
         # -----------------------------------------------------
 
-        ppcs, ybus, ybus_comparison, model_comparison = (
+        ppcs, ybus, ybus_comparison, model_comparison, results_comparability, asset_counts_a, asset_counts_b = (
             match_model(*canonical_cases, config=self.config)
         )
 
         # -----------------------------------------------------
-        # 3. Determine whether results can be compared
+        # 3. Exit if results cannot be compared
         # -----------------------------------------------------
 
-        results_comparability = determine_results_comparability(ybus_comparison, model_comparison)
+        if results_comparability.is_valid:
+            validation = ValidationResult(True, "Model comparison completed and solved-state results are comparable.")
+        else:
+            validation = ValidationResult(False, "Solved-state results are not comparable. "
+                                                 "Reason: " + str(results_comparability.reason))
 
-        # -----------------------------------------------------
-        # 4. Validate model comparison
-        # -----------------------------------------------------
-
-        validation = validate_model_comparison(
-            model_comparison,
-            ybus_comparison,
-            results_comparability,
-        )
-
-        if not validation.is_valid:
             return build_report(
                 ppcs=ppcs,
                 ybus=ybus,
@@ -73,12 +61,19 @@ class CaseDiffEngine:
             )
 
         # -----------------------------------------------------
-        # 5. Compare solved power-flow states
+        # 4. Compare solved power-flow states
         # -----------------------------------------------------
 
         power_flow_action = run_power_flow_comparison(
             *canonical_cases,
             self.config,
+        )
+
+        # Generate asset-level summary from parameter-level summary
+        populate_state_asset_summaries(
+            power_flow_action.result,
+            asset_counts_a,
+            asset_counts_b,
         )
 
         if not power_flow_action.success:
@@ -104,7 +99,7 @@ class CaseDiffEngine:
         power_flow_comparison = power_flow_action.result
 
         # -----------------------------------------------------
-        # 6. Determine overall result match
+        # 5. Determine overall result match
         # -----------------------------------------------------
 
         results_match = results_match_from_metadata(
@@ -134,15 +129,17 @@ class CaseDiffEngine:
             statistical_insights=statistical_insights,
         )
 
-        #
-        # # TODO: Export / Visualize insights
+        # -----------------------------------------------------
+        # 6. TODO: Export / Visualize insights
+        # -----------------------------------------------------
+
         # visual_insights = generate_insights()
 
         # -----------------------------------------------------
         # 7. Build final report
         # -----------------------------------------------------
 
-        return build_report(
+        report = build_report(
             ppcs=ppcs,
             ybus=ybus,
             ybus_comparison=ybus_comparison,
@@ -156,6 +153,8 @@ class CaseDiffEngine:
             statistical_insights=statistical_insights,
             investigation_priorities=investigation_priorities
         )
+
+        return report
 
 
 def main(config_file):

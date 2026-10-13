@@ -6,14 +6,15 @@ Case_IO:
   Output_path: IOfiles/IEEE14bus/Outputs
 
 Report:
-  top_n_severe: 5
+  y_pu_tolerance: 1e-6  # Tolerance for Ybus Admittance in p.u.
+  top_n_severe: 10      # If mismatch exceed sever threshold, display these many highest mismatches.
 
 Preferences:
   export_canonical_format: True
   report_all_mismatches: False
   generate_side-by-side_comparator: True
   enable_multithreading: True
-  enable_multiprocessing: True
+  enable_multiprocessing: False
 
 Termination_clauses:
   abort_if_network_mismatch: True

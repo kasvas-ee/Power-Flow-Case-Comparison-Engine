@@ -16,7 +16,7 @@ def _as_csr(matrix):
     return csr_matrix(np.asarray(matrix))
 
 
-def _count_pattern_differences(matrix_a, matrix_b, tol):
+def _count_pattern_differences(matrix_a, matrix_b, tol=0):
     """
     Count locations where one Ybus has a value above tolerance
     and the other does not.
@@ -25,20 +25,13 @@ def _count_pattern_differences(matrix_a, matrix_b, tol):
     pattern_a = matrix_a.copy()
     pattern_b = matrix_b.copy()
 
-    pattern_a.data = (
-        np.abs(pattern_a.data) > tol
-    ).astype(np.int8)
-
-    pattern_b.data = (
-        np.abs(pattern_b.data) > tol
-    ).astype(np.int8)
-
+    # Eliminate intentionally stored zeros
     pattern_a.eliminate_zeros()
     pattern_b.eliminate_zeros()
 
-    difference = pattern_a != pattern_b
+    difference = pattern_a.astype(bool) != pattern_b.astype(bool)
 
-    return int(difference.nnz)
+    return difference.nnz
 
 
 def _compare_values(matrix_a, matrix_b, tol):
@@ -59,23 +52,19 @@ def _compare_values(matrix_a, matrix_b, tol):
 
     value_diff_mask = abs_difference > tol
 
-    value_diff_count = int(
-        np.sum(value_diff_mask)
-    )
+    value_diff_count = np.sum(value_diff_mask)
 
     if value_diff_count == 0:
         return 0, 0.0
 
-    max_value_diff = float(
-        np.max(abs_difference)
-    )
+    max_value_diff = float(np.max(abs_difference))
 
     return value_diff_count, max_value_diff
 
 
-def compare_ybus(Ybus_a, Ybus_b, tol=1e-9):
+def compare_ybus(ybus_a, ybus_b, tol=1e-9):
     """
-    Compare two Ybus matrices.
+    Compare two Ybus sparse matrices.
 
     Comparison is performed in three stages:
 
@@ -83,133 +72,59 @@ def compare_ybus(Ybus_a, Ybus_b, tol=1e-9):
     2. Sparsity pattern / topology
     3. Numerical admittance values
 
-    Sparse matrices remain sparse throughout the comparison.
+    Memory optim: Sparse matrices remain sparse throughout the comparison.
     """
 
     logger.info("Starting Ybus comparison")
-
-    Ybus_a = _as_csr(Ybus_a)
-    Ybus_b = _as_csr(Ybus_b)
-
-    shape_a = Ybus_a.shape
-    shape_b = Ybus_b.shape
+    ybus_outcome = YbusComparisonResult()
+    ybus_a = _as_csr(ybus_a)
+    ybus_b = _as_csr(ybus_b)
 
     # ---------------------------------------------------------
     # 1. Bus count / matrix dimensions
     # ---------------------------------------------------------
 
-    bus_count_match = shape_a == shape_b
+    ybus_outcome.shape_a = ybus_a.shape
+    ybus_outcome.shape_b = ybus_b.shape
 
+    bus_count_match = ybus_a.shape == ybus_b.shape
     if not bus_count_match:
-        logger.error(
-            "Ybus shape mismatch: A=%s, B=%s",
-            shape_a,
-            shape_b,
-        )
-
-        return YbusComparisonResult(
-            is_match=False,
-            bus_count_match=False,
-            topology_match=False,
-            ybus_value_match=False,
-            shape_a=shape_a,
-            shape_b=shape_b,
-            reason=(
-                "Bus count mismatch: "
-                "Ybus matrix shapes are different."
-            ),
-        )
+        logger.error("Bus count mismatch: Ybus shape mismatch: A={}, B={}".format(ybus_a.shape, ybus_b.shape))
+        ybus_outcome.reason = "Bus count mismatch: Ybus matrix shapes are different."
+        return ybus_outcome
+    ybus_outcome.bus_count_match = True
 
     # ---------------------------------------------------------
     # 2. Topology / sparsity pattern
     # ---------------------------------------------------------
 
-    pattern_diff_count = _count_pattern_differences(
-        Ybus_a,
-        Ybus_b,
-        tol,
-    )
+    pattern_diff_count = _count_pattern_differences(ybus_a, ybus_b)
+    ybus_outcome.pattern_diff_count = pattern_diff_count
 
     topology_match = pattern_diff_count == 0
-
     if not topology_match:
-        logger.warning(
-            "Ybus topology mismatch: %d entries differ",
-            pattern_diff_count,
-        )
-
-        return YbusComparisonResult(
-            is_match=False,
-            bus_count_match=True,
-            topology_match=False,
-            ybus_value_match=False,
-            pattern_diff_count=pattern_diff_count,
-            value_diff_count=None,
-            max_value_diff=None,
-            shape_a=shape_a,
-            shape_b=shape_b,
-            reason=(
-                "Topology mismatch: "
-                "Ybus sparsity patterns differ."
-            ),
-        )
+        logger.error("Topology mismatch: {} entries in Ybus sparcity patterns differ.".format(pattern_diff_count))
+        ybus_outcome.reason = "Topology mismatch: Ybus sparsity patterns differ."
+        return ybus_outcome
+    ybus_outcome.topology_match = True
 
     # ---------------------------------------------------------
     # 3. Numerical Ybus values
     # ---------------------------------------------------------
 
-    value_diff_count, max_value_diff = _compare_values(
-        Ybus_a,
-        Ybus_b,
-        tol,
-    )
+    value_diff_count, max_value_diff = _compare_values(ybus_a, ybus_b, tol)
+    ybus_outcome.value_diff_count = value_diff_count
+    ybus_outcome.max_value_diff = max_value_diff
 
     ybus_value_match = value_diff_count == 0
-
     if not ybus_value_match:
-        logger.warning(
-            "Ybus value mismatch: %d entries differ, "
-            "maximum difference = %s",
-            value_diff_count,
-            max_value_diff,
-        )
-
-        return YbusComparisonResult(
-            is_match=False,
-            bus_count_match=True,
-            topology_match=True,
-            ybus_value_match=False,
-            pattern_diff_count=pattern_diff_count,
-            value_diff_count=value_diff_count,
-            max_value_diff=max_value_diff,
-            shape_a=shape_a,
-            shape_b=shape_b,
-            reason=(
-                "Ybus value mismatch: "
-                "admittance values differ beyond tolerance."
-            ),
-        )
-
-    # ---------------------------------------------------------
-    # 4. Full Ybus match
-    # ---------------------------------------------------------
-
-    logger.info(
-        "Ybus matrices match within tolerance."
-    )
-
-    return YbusComparisonResult(
-        is_match=True,
-        bus_count_match=True,
-        topology_match=True,
-        ybus_value_match=True,
-        pattern_diff_count=0,
-        value_diff_count=0,
-        max_value_diff=0.0,
-        shape_a=shape_a,
-        shape_b=shape_b,
-        reason=(
-            "Ybus matrices match within the "
-            "specified tolerance."
-        ),
-    )
+        logger.warning("Ybus value mismatch: {} admittance values differ, "
+                       "maximum difference = {}".format(value_diff_count, max_value_diff))
+        ybus_outcome.reason = "Ybus value mismatch: admittance values differ beyond tolerance."
+        return ybus_outcome
+    ybus_outcome.ybus_value_match = True
+    ybus_outcome.is_match=True
+    msg = "Ybus matrices match within the specified tolerance."
+    logger.warning(msg)
+    ybus_outcome.reason = msg
+    return ybus_outcome

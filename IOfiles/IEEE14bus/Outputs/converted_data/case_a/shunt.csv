@@ -1,0 +1,2 @@
+,bus,name,q_mvar,p_mw,vn_kv,step,max_step,id_characteristic_table,step_dependency_table,in_service
+0,8,,-19.0,0.0,1.0,1,1,,False,True

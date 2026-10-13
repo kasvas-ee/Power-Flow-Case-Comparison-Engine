@@ -5,7 +5,7 @@ from scipy.io import loadmat
 import pandapower as pp
 import pandas as pd
 import numpy as np
-from src.canonicalization.pandapower import net_exporter
+from src.canonicalization.pandapower import net_exporter, validate_net
 from src.logger import logger
 
 
@@ -222,7 +222,10 @@ def mp_to_canonical(case_path, output_path, export_net):
         # Swap Fbus & Tbus of branches and their results where FbusID>TbusID
         mat = swap_branch_buses(mat)
 
-        # TODO: Validate if the mat dictionary has necessary keys and corresponding numpy arrays of expected width.
+        # TODO: Expand to other asset-types beyond Bus, Branch, Load and Gen
+
+        # TODO: Add validations like:
+        #       does the mat dictionary have necessary keys and corresponding numpy arrays of expected width.
 
         # Converter
         net = pp.create_empty_network()
@@ -231,6 +234,9 @@ def mp_to_canonical(case_path, output_path, export_net):
         # Exporter
         if export_net:
             net_exporter(net, output_path)
+
+        # Validate if all tables have necessary columns
+        validate_net(net)
 
         return net
     except Exception as e:
