@@ -1,3 +1,5 @@
+"""Define structured dataclass containers for validation, comparison, summary, and reporting stages."""
+
 from __future__ import annotations
 
 
@@ -332,4 +334,5 @@ class MetricDefinition:
 
     @property
     def is_derived(self) -> bool:
+        """Indicate whether the metric is defined by a formula instead of a direct field."""
         return self.source == "derived"

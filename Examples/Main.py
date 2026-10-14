@@ -15,6 +15,7 @@ ROOT = Path(__file__).parent.parent
 
 
 def list_examples():
+    """Return the sorted names of the registered example cases."""
     return sorted(CASES)
 
 
@@ -22,6 +23,7 @@ class Example:
 
     @staticmethod
     def create(example_name: str, reuse_inputs=True, m_file_path=None, **options):
+        """Prepare example inputs and run the engine, optionally reusing existing files."""
         timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
 
         # Setup logger

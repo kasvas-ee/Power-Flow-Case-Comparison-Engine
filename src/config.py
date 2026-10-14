@@ -1,3 +1,5 @@
+"""Load and validate engine configuration and metadata-driven metric definitions."""
+
 from __future__ import annotations
 
 import yaml
@@ -44,6 +46,7 @@ def process_config(config_file: str):
 
 
 def _parse_bool(value: Any) -> bool:
+    """Normalize supported boolean representations and reject unrecognized values."""
     if isinstance(value, (bool, np.bool_)):
         return bool(value)
     text = str(value).strip().lower()
@@ -56,6 +59,7 @@ def _parse_bool(value: Any) -> bool:
 
 def load_metric_definitions(path: str | Path) -> list[MetricDefinition]:
     """Load and validate the CSV. Disabled rows are intentionally discarded."""
+    # Metric metadata is loaded once and normalized before it is used by comparison adapters.
     frame = pd.read_csv(path)
     missing = REQUIRED_COLUMNS - set(frame.columns)
     if missing:
@@ -189,6 +193,7 @@ class Config:
             raise FileNotFoundError(msg)
 
     def validate_config(self):
+        """Validate configuration settings and metric definitions before comparison begins."""
         valid_formats = ["matpower", "pandapower"]
         if self.case_a_format not in valid_formats:
             msg = "Case A has invalid format."

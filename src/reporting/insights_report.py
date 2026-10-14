@@ -1,3 +1,5 @@
+"""Format deterministic insights and investigation priorities for report output."""
+
 from src.reporting.formatting import section, subsection, format_value
 
 

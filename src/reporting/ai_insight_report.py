@@ -61,12 +61,14 @@ Rules:
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
+    """Read a field from an object or mapping and return a default when it is absent."""
     if isinstance(obj, dict):
         return obj.get(name, default)
     return getattr(obj, name, default)
 
 
 def _finite_number(value: Any) -> float | None:
+    """Convert a value to a finite number, returning no value when conversion is unsafe."""
     try:
         number = float(value)
         return number if math.isfinite(number) else None
@@ -75,6 +77,7 @@ def _finite_number(value: Any) -> float | None:
 
 
 def _json_safe(value: Any) -> Any:
+    """Convert nested values into JSON-safe representations, excluding non-finite numbers."""
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
@@ -90,6 +93,7 @@ def _json_safe(value: Any) -> Any:
 
 
 def _as_flat_list(value: Any) -> list[Any] | None:
+    """Normalize a value into a flat list for evidence packaging."""
     if value is None:
         return None
     try:
@@ -102,6 +106,7 @@ def _as_flat_list(value: Any) -> list[Any] | None:
 
 
 def _status_text(value: Any) -> str:
+    """Normalize a comparison status for display in the evidence report."""
     return str(value if value is not None else "NOT PERFORMED").strip().upper()
 
 
@@ -111,6 +116,7 @@ def build_evidence_package(report: Any) -> dict[str, Any]:
     counter = 1
 
     def add(kind: str, title: str, facts: dict[str, Any]) -> str:
+        """Add a bounded evidence record and assign its reference identifier."""
         nonlocal counter
         evidence_id = f"E{counter:03d}"
         counter += 1
@@ -219,15 +225,18 @@ def build_evidence_package(report: Any) -> dict[str, Any]:
 
 
 def _insight_schema() -> dict[str, Any]:
+    """Build the JSON schema used to validate the structured insight response."""
     return JSON_SCHEMA
 
 
 def _validate_insights(payload: Any, evidence: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate the response structure and discard evidence references not in the supplied package."""
     if not isinstance(payload, dict):
         raise ValueError("AI response is not a JSON object")
     required = set(JSON_SCHEMA["required"])
     if not required.issubset(payload):
         raise ValueError("AI response is missing required fields")
+    # Evidence references are checked against this allow-list before model output is accepted.
     allowed_ids = {str(item["id"]) for item in evidence}
     allowed_assessments = {"likely_model_related", "likely_solution_related", "multiple_plausible_explanations", "insufficient_evidence", "no_material_issue_identified"}
     if payload["overall_assessment"] not in allowed_assessments:
@@ -262,6 +271,7 @@ def _validate_insights(payload: Any, evidence: list[dict[str, Any]]) -> dict[str
 
 
 def _call_local_model(evidence_package: dict[str, Any], settings: Any) -> dict[str, Any]:
+    """Request structured diagnostic insights from the configured local model endpoint."""
     try:
         from openai import OpenAI
     except ImportError as exc:
@@ -297,14 +307,17 @@ def _call_local_model(evidence_package: dict[str, Any], settings: Any) -> dict[s
 
 
 def _esc(value: Any) -> str:
+    """Escape a value for safe insertion into HTML."""
     return html.escape(str(value if value is not None else ""), quote=True)
 
 
 def _evidence_index(evidence: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Build a lookup from evidence identifiers to their records."""
     return {str(item["id"]): item for item in evidence}
 
 
 def _render_html(insights: dict[str, Any], package: dict[str, Any], model_name: str) -> str:
+    """Render the validated insight content as a standalone HTML report."""
     index = _evidence_index(package.get("evidence", []))
     assessment_labels = {
         "likely_model_related": "Likely model-related",

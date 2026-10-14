@@ -60,6 +60,7 @@ FORMULA = SafeFormula()
 
 
 def _net_table(net: Any, definition: MetricDefinition) -> pd.DataFrame:
+    """Return the pandapower table associated with a metadata asset definition."""
     table_name = definition.asset_id
     # In state metadata, asset ID is the exact result-table identifier.
     table = net.get(table_name) if hasattr(net, "get") else None
@@ -73,6 +74,7 @@ def _net_table(net: Any, definition: MetricDefinition) -> pd.DataFrame:
 
 
 def _extract_direct(definition: MetricDefinition, case: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
+    """Extract a metric directly from its configured canonical source table."""
     source = definition.source
     asset = definition.asset_name
     if source == "ppc":
@@ -217,7 +219,8 @@ def run_metadata_comparisons(
         "b": {"net": cases[1], "ppc": ppcs[1]},
     }
 
-    # In sequential run, group definitions by asset type and compute statistics for 1 group at a time
+    # In sequential run, group definitions by asset type and compute statistics
+    # so each case table is extracted once per asset group.
     groups = group_definitions(definitions)
 
     for (_scope, _asset), group in groups.items():
@@ -236,5 +239,6 @@ def run_metadata_comparisons(
         ids = ids_a if len(ids_a) == len(ids_b) else None
         output.extend(compare_scope_asset(group, table_values_a, table_values_b, asset_ids=ids))
 
-        # TODO: In parallel run, each metric is evaluated individually and metrics are distributed among workers equally
+        # TODO: Implement parallel run in this function,
+        #  such that each metric is evaluated individually and metrics are distributed among workers equally
     return output

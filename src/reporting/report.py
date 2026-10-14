@@ -1,3 +1,5 @@
+"""Coordinate writing the configured comparison reports and summaries."""
+
 from pathlib import Path
 from src.comparison.result_structures import ComparisonReport
 from src.reporting.model_summary_report import model_summary_report
@@ -11,6 +13,7 @@ from src.logger import logger
 
 
 def write_reports(config, engine, report):
+    """Write the requested text and structured reports for a completed comparison."""
     summary, full_text = write_comparison_report(report, str(config.output_path) + "/comparison_report.txt")
 
     # Optional HTML statistical report; never invalidate the base TXT report.

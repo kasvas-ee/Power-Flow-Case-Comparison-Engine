@@ -22,6 +22,7 @@ def _voltage_extremes(net):
     bus_ids = np.asarray(res_bus.index)
 
     def extrema(values):
+        """Return finite minimum and maximum values and their corresponding bus identifiers."""
         valid = np.isfinite(values)
 
         if not valid.any():
@@ -127,6 +128,7 @@ def compare_system_metrics(net_a, net_b):
 
     ploss_a, qloss_a = _calculate_branch_losses(net_a)
 
+    # Keep the generation-load-loss residual separate from per-asset deltas as a system-level consistency indicator.
     p_balance_a = (
         pgen_a
         - pload_a
@@ -245,6 +247,7 @@ def _populate_insight_views(result):
                     "p_loss": "p_loss", "q_loss": "q_loss", "p_loss_pct": "p_loss_pct", "q_loss_pct": "q_loss_pct",
                     "s_from_mva": "s_from", "s_to_mva": "s_to", "s_from": "s_from", "s_to": "s_to"},
     }
+    # These compatibility views reuse computed metadata results rather than running a second comparison.
     views = {"bus": {}, "generation": {}, "load": {}, "branch": {}}
     for item in result.metadata_comparisons:
         asset = str(item.get("asset_name", "")).lower()

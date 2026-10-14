@@ -10,6 +10,7 @@ import numpy as np
 
 
 def _safe_float(value):
+    """Convert a value to a finite float or return no value when it is invalid."""
     try:
         value = float(value)
         return value if np.isfinite(value) else None
@@ -58,6 +59,7 @@ def calculate_relative_delta(delta, a, b, tolerance):
 
 
 def make_asset_label(item, index):
+    """Create a readable asset label from the available identity fields."""
     if index is None:
         return None
 
@@ -76,6 +78,7 @@ def make_asset_label(item, index):
 
 
 def metadata_result_for_report(item):
+    """Adapt one metadata comparison result to the shape used by existing reports."""
     stats = item.get("statistics") or {}
     a = item.get("case_a")
     b = item.get("case_b")
@@ -181,6 +184,7 @@ def metadata_result_for_report(item):
 
 
 def metadata_groups(results, key="asset_name"):
+    """Group metadata comparison results for report presentation."""
     grouped = {}
     for item in results or []:
         grouped.setdefault(str(item.get(key, "unknown")).lower(), []).append(item)

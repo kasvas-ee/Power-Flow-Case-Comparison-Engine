@@ -1,9 +1,12 @@
+"""Command-line interface for running and listing the predefined comparison examples."""
+
 import argparse
 
-from examples.Main import Example, list_examples
+from Examples.Main import Example, list_examples
 
 
 def build_parser():
+    """Build the command-line parser for listing and running example scenarios."""
     parser = argparse.ArgumentParser(
         description="Power Flow Case Comparison Engine - Examples"
     )
@@ -56,6 +59,7 @@ def build_parser():
 
 
 def run_example(args):
+    """Run the selected example with the command-line options supplied by the user."""
     options = {
         "create_topology_mismatch": args.create_topology_mismatch,
         "increase_load_by": args.increase_load_by,
@@ -68,6 +72,7 @@ def run_example(args):
 
 
 def list_available_examples(args):
+    """Print the registered example names available to the CLI."""
     print("Available Examples:")
 
     for example_name in list_examples():
@@ -75,6 +80,7 @@ def list_available_examples(args):
 
 
 def main():
+    """Parse command-line arguments and dispatch to the selected CLI action."""
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

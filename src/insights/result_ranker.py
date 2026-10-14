@@ -1,3 +1,5 @@
+"""Rank severe comparison findings and return the most significant metric deltas."""
+
 import numpy as np
 from typing import List, Optional
 

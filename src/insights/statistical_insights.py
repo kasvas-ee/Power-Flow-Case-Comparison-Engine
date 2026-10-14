@@ -1,3 +1,5 @@
+"""Derive statistical patterns and structured findings from existing per-asset comparison results."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -55,6 +57,7 @@ def _finite_float(value: Any) -> float | None:
 
 
 def _get_comparable_count(item: dict) -> int:
+    """Return the number of values available for a valid comparison."""
     statistics = _get_statistics(item)
 
     try:
@@ -67,6 +70,7 @@ def _get_comparable_count(item: dict) -> int:
 
 
 def _get_mismatch_count(item: dict) -> int:
+    """Return the mismatch count reported by the comparison result."""
     statistics = _get_statistics(item)
 
     try:
@@ -79,6 +83,7 @@ def _get_mismatch_count(item: dict) -> int:
 
 
 def _get_mismatch_percent(item: dict) -> float | None:
+    """Return the reported mismatch percentage or derive it from the counts."""
     statistics = _get_statistics(item)
 
     percentage = _finite_float(
@@ -98,6 +103,7 @@ def _get_mismatch_percent(item: dict) -> float | None:
 
 
 def _get_metric_name(item: dict) -> str:
+    """Choose a display name for the metric from its available metadata fields."""
     return str(
         item.get("display_name")
         or item.get("parameter_name")
@@ -107,6 +113,7 @@ def _get_metric_name(item: dict) -> str:
 
 
 def _get_asset_name(item: dict) -> str:
+    """Return the asset type label associated with a comparison result."""
     return str(
         item.get("asset_name")
         or "Unknown asset type"
@@ -114,6 +121,7 @@ def _get_asset_name(item: dict) -> str:
 
 
 def _get_scope(item: dict) -> str:
+    """Return the 'model' or 'state' scope for a comparison result."""
     return str(
         item.get("scope")
         or "unknown"
@@ -219,6 +227,7 @@ def _make_finding(
 # ============================================================
 
 def _isolated_vs_widespread(item: dict) -> list[dict]:
+    """Classify a metric mismatch pattern as isolated or widespread using percentage heuristics."""
     findings = []
 
     mismatches = _get_mismatch_count(item)
@@ -232,6 +241,7 @@ def _isolated_vs_widespread(item: dict) -> list[dict]:
     asset = _get_asset_name(item)
     scope = _get_scope(item)
 
+    # These percentage cutoffs are heuristic pattern labels, not voltage, thermal, or other operating limits.
     if percentage <= 10.0:
         category = "isolated_mismatches"
         description = "isolated"
@@ -271,6 +281,7 @@ def _isolated_vs_widespread(item: dict) -> list[dict]:
 # ============================================================
 
 def _dominant_mismatch_groups(items: list[dict]) -> list[dict]:
+    """Identify asset types that account for a dominant share of observed mismatches."""
     findings = []
 
     # Group by scope and asset type.
@@ -360,6 +371,7 @@ def _dominant_mismatch_groups(items: list[dict]) -> list[dict]:
 # ============================================================
 
 def _parameter_specific_patterns(items: list[dict]) -> list[dict]:
+    """Generate findings for recognizable patterns in individual metric distributions."""
     findings = []
 
     groups = defaultdict(list)
@@ -436,13 +448,13 @@ def _parameter_specific_patterns(items: list[dict]) -> list[dict]:
     return findings
 
 
-
 # ============================================================
 # Scenario 4
 # Relative-delta patterns
 # ============================================================
 
 def _relative_delta_patterns(item: dict) -> list[dict]:
+    """Identify patterns in the relative-delta statistics already calculated by the comparator."""
     findings = []
 
     if _get_mismatch_count(item) == 0:
@@ -528,6 +540,7 @@ def _relative_delta_patterns(item: dict) -> list[dict]:
 # ============================================================
 
 def _input_discrepancy_signals(items: list[dict]) -> list[dict]:
+    """Summarize evidence suggesting that the input network models differ."""
     findings = []
 
     for item in items:
@@ -575,6 +588,7 @@ def _input_discrepancy_signals(items: list[dict]) -> list[dict]:
 # ============================================================
 
 def _asset_level_outliers(item: dict) -> list[dict]:
+    """Identify assets with unusually large reported metric differences."""
     findings = []
 
     delta = _get_delta_array(item)
@@ -640,6 +654,7 @@ def _overall_comparison_patterns(
     scope: str,
 ) -> list[dict]:
 
+    """Combine per-metric statistics into higher-level comparison findings."""
     comparable = sum(
         _get_comparable_count(item)
         for item in items
@@ -679,6 +694,7 @@ def _overall_comparison_patterns(
 # ============================================================
 
 def _percentile_patterns(item: dict) -> list[dict]:
+    """Interpret distribution percentiles to describe the size and concentration of differences."""
     findings = []
 
     if _get_mismatch_count(item) == 0:

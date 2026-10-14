@@ -1,10 +1,14 @@
+"""Predefined scenarios that demonstrate matching and intentionally mismatched power-flow cases."""
+
 from Examples.Main import Example
 from functools import wraps
 
 
 def print_summary(func):
+    """Decorate an example runner to print its returned summary lines."""
     @wraps(func)
     def wrapper(*args, **kwargs):
+        """Run the wrapped example, print its summary, and return its result."""
         summary = func(*args, **kwargs)
         print("\n".join(summary))
         return summary
@@ -17,6 +21,7 @@ class SillyExample:
     @staticmethod
     @print_summary
     def compare_diff_models():
+        """Run an example in which the two input network models intentionally differ."""
         summary = Example.create("MismatchedModels")
         return summary
 

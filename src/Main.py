@@ -17,6 +17,7 @@ from src.reporting.report import write_reports
 class CaseDiffEngine:
 
     def __init__(self, config):
+        """Store the configuration used by subsequent case comparisons."""
         self.config = config
 
     def compare(self):

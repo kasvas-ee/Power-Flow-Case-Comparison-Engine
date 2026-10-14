@@ -1,5 +1,5 @@
 # #########################################################################
-# TODO: Adapter to convert MATPOWER case file (.m file) to canonical format
+# Adapter to convert MATPOWER case file (.m file) to canonical format
 # #########################################################################
 from scipy.io import loadmat
 import pandapower as pp
@@ -17,6 +17,7 @@ def mat_to_pp(mat, net):
     # Base MVA
     net.sn_mva = mat["baseMVA"].max()
 
+    # MATPOWER tables use positional columns, so field mapping must follow the MATPOWER column definitions.
     # bus
     bus_array = mat["bus"]
     vn_kv = 1 if max(bus_array[:, 9]) == 0 else bus_array[:, 9] # Nominal voltages (column 9 in MATPOWER bus table)
@@ -182,6 +183,7 @@ def mat_to_pp(mat, net):
 
 
 def reorder_bus_ids(mat):
+    """Reorder MATPOWER bus identifiers and update references to those buses consistently."""
     if max(mat["bus"][:, 0]) == mat["bus"].shape[0]:
         # Bus numbering is sequential
         return mat
@@ -199,6 +201,7 @@ def reorder_bus_ids(mat):
 
 
 def swap_branch_buses(mat):
+    """Swap branch terminal identifiers while retaining the branch data fields."""
     mask = mat["branch"][:, 0] > mat["branch"][:, 1]
     if mask.any():
         # Swap from/to bus IDs, Pf <-> Pt and Qf <-> Qt

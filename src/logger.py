@@ -1,3 +1,5 @@
+"""Configure application logging for console and file output."""
+
 from datetime import datetime
 from pathlib import Path
 import logging
