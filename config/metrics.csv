@@ -1,0 +1,36 @@
+scope,source,asset name,asset ID,parameter name,parameter ID,enabled,comparison,tolerance,severe_threshold,unit,display_name
+model,ppc,bus,bus,bus_id,BUS_I,TRUE,exact,0,,bus_id,Bus Nominal Voltage
+model,ppc,bus,bus,vn_kv,BASE_KV,FALSE,exact,0,,kV,Bus Nominal Voltage
+model,ppc,bus,bus,type,BUS_TYPE,FALSE,exact,0,,NA,Bus type
+model,ppc,branch,impedance,fbus,F_BUS,TRUE,exact,0,,bus_id,From Bus
+model,ppc,branch,impedance,tbus,T_BUS,TRUE,exact,0,,bus_id,To Bus
+model,ppc,branch,impedance,r_pu,BR_R,TRUE,absolute,1.00E-07,,pu,Branch Resistance
+model,ppc,branch,impedance,x_pu,BR_X,TRUE,absolute,1.00E-07,,pu,Branch Reactance
+model,ppc,branch,impedance,b_pu,BR_B,TRUE,absolute,1.00E-07,,pu,Branch Charging Susceptance
+model,ppc,load,bus,bus_id,BUS_I,TRUE,exact,0,,bus_id,Load Bus ID
+model,ppc,load,bus,p_mw,PD,TRUE,absolute,1.00E-04,,MW,Load Active Power
+model,ppc,load,bus,q_mvar,QD,TRUE,absolute,1.00E-04,,MVAr,Load Reactive Power
+model,ppc,generation,gen,bus_id,GEN_BUS,TRUE,exact,0,,bus_id,Generator Bus ID
+model,ppc,generation,gen,p_mw,PG,TRUE,absolute,1.00E-04,,MW,Generator Active Power
+model,ppc,generation,gen,p_max_mw,PMAX,TRUE,absolute,1.00E-04,,MW,Generator Maximum Active Power
+model,ppc,generation,gen,p_min_mw,PMIN,TRUE,absolute,1.00E-04,,MW,Generator Minimum Active Power
+model,ppc,generation,gen,vm_pu,VG,TRUE,absolute,1.00E-07,,pu,Generator Voltage Setpoint
+model,ppc,generation,gen,q_max_mvar,QMAX,TRUE,absolute,1.00E-04,,MVAr,Generator Maximum Reactive Power
+model,ppc,generation,gen,q_min_mvar,QMIN,TRUE,absolute,1.00E-04,,MVAr,Generator Minimum Reactive Power
+state,net,bus,res_bus,vm_pu,vm_pu,TRUE,absolute,1.00E-02,0.01,pu,Bus Voltage Magnitude
+state,net,bus,res_bus,va_degree,va_degree,TRUE,angle,1.00E-02,3,degree,Bus Voltage Angle
+state,net,generation,res_gen,p_mw,p_mw,TRUE,absolute,1.00E-04,2,MW,Generation Active Power
+state,net,generation,res_gen,q_mvar,q_mvar,TRUE,absolute,1.00E-04,2,MVAr,Generation Reactive Power
+state,derived,generation,res_gen,p_share,p_mw/sum(p_mw),TRUE,absolute,1.00E-04,5,%,Generation Active Power Share
+state,net,load,res_load,p_mw,p_mw,TRUE,absolute,1.00E-04,2,MW,Load Active Power
+state,net,load,res_load,q_mvar,q_mvar,TRUE,absolute,1.00E-04,2,MVAr,Load Reactive Power
+state,net,branch,res_impedance,p_from_mw,p_from_mw,TRUE,absolute,1.00E-04,2,MW,Branch From-End Active Power
+state,net,branch,res_impedance,q_from_mvar,q_from_mvar,TRUE,absolute,1.00E-04,2,MVAr,Branch From-End Reactive Power
+state,net,branch,res_impedance,p_to_mw,p_to_mw,TRUE,absolute,1.00E-04,2,MW,Branch To-End Active Power
+state,net,branch,res_impedance,q_to_mvar,q_to_mvar,TRUE,absolute,1.00E-04,2,MVAr,Branch To-End Reactive Power
+state,derived,branch,res_impedance,s_from_mva,sqrt(p_from_mw*p_from_mw+q_from_mvar*q_from_mvar),TRUE,absolute,1.00E-04,2,MVA,Branch From-End Apparent Power
+state,derived,branch,res_impedance,s_to_mva,sqrt(p_to_mw*p_to_mw+q_to_mvar*q_to_mvar),TRUE,absolute,1.00E-04,2,MVA,Branch To-End Apparent Power
+state,derived,branch,res_impedance,p_loss_mw,p_from_mw + p_to_mw,TRUE,absolute,1.00E-03,0.1,MW,Branch Active Power Loss
+state,derived,branch,res_impedance,q_loss_mvar,q_from_mvar + q_to_mvar,TRUE,absolute,1.00E-03,0.1,MVAr,Branch Reactive Power Loss
+state,derived,branch,res_impedance,p_loss_percent,"100*(p_from_mw + p_to_mw)/max(abs(p_from_mw), abs(p_to_mw))",TRUE,absolute,1.00E-02,1,%,Branch Active Loss Percentage
+state,derived,branch,res_impedance,q_loss_percent,"100*(q_from_mvar + q_to_mvar)/max(abs(q_from_mvar), abs(q_to_mvar))",TRUE,absolute,1.00E-02,1,%,Branch Reactive Loss Percentage

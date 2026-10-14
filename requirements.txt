@@ -1,5 +1,23 @@
 # Requirements for engine version 1.x
 pandas == 2.3.3
 numpy == 2.0.2
+
+# For canonical format
 pandapower == 3.2.2
+
+# For creating MATPOWER files
+matpowercaseframes == 2.1.1
+numba == 0.60.0
+scipy
+pypower
+
+# For settings.yaml file
+PyYAML == 6.0.3
+
 xlsxwriter == 3.2.9
+openpyxl == 3.1.5
+
+# Client for a self-hosted OpenAI-compatible inference endpoint.
+openai>=1.78.0,<3.0.0
+
+pytest == 8.3.0
