@@ -1,5 +1,6 @@
+"""Vectorized numerical comparison helpers for aligned arrays of power-system metrics."""
+
 import numpy as np
-from src.logger import logger
 from src.comparison.result_structures import ComparisonResult
 
 
@@ -25,6 +26,7 @@ def _calculate_differences(
     nan_a = np.isnan(values_a)
     nan_b = np.isnan(values_b)
 
+    # Build explicit validity masks before subtraction so paired and one-sided NaNs follow different rules.
     both_nan = nan_a & nan_b
     one_nan = nan_a ^ nan_b
 

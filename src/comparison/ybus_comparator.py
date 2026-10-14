@@ -1,3 +1,5 @@
+"""Compare sparse Ybus matrices by dimensions, sparsity pattern, and numerical values."""
+
 import numpy as np
 from scipy.sparse import csr_matrix, issparse
 
@@ -98,6 +100,7 @@ def compare_ybus(ybus_a, ybus_b, tol=1e-9):
     # 2. Topology / sparsity pattern
     # ---------------------------------------------------------
 
+    # Check sparse structure separately from coefficient values so topology-like differences are reported first.
     pattern_diff_count = _count_pattern_differences(ybus_a, ybus_b)
     ybus_outcome.pattern_diff_count = pattern_diff_count
 

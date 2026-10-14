@@ -1,3 +1,5 @@
+"""Render system-level solved-state metrics and differences for reports."""
+
 from src.comparison.result_structures import PowerFlowComparisonResult
 from src.reporting.formatting import (
     format_bool,

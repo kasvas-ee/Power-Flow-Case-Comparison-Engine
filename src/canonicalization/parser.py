@@ -1,3 +1,5 @@
+"""Select and run the canonicalization adapter for each configured input case."""
+
 from src.canonicalization.matpower import mp_to_canonical
 from src.canonicalization.pandapower import pp_to_canonical
 from src.canonicalization.powsybl import ppsb_to_canonical

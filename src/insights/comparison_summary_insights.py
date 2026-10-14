@@ -1,3 +1,5 @@
+"""Generate deterministic engineering summaries and investigation priorities from comparison results."""
+
 from src.comparison.result_structures import ActionResult
 
 from src.comparison.result_structures import (

@@ -9,6 +9,7 @@ from src.logger import logger
 
 
 def validate_net(net):
+    """Check that the canonical pandapower network has the required tables and columns."""
     # TODO: Include 'in_service' status
     required_columns = {
         "bus":   {},
@@ -58,6 +59,7 @@ def validate_net(net):
 
 
 def net_exporter(net, output_path):
+    """Export selected pandapower element and result tables as CSV files."""
     export_list = ['bus', "ext_grid", "gen", "load", "impedance", "shunt", "poly_cost",
                    "res_bus", "res_ext_grid", "res_gen", "res_load", "res_impedance", "res_shunt"]
 
@@ -108,6 +110,7 @@ def canonicalize_impedance(net):
         branch_res.iloc[mask, :] = branch_res.to_numpy()[np.ix_(mask, [2, 3, 0, 1])]
 
     # Sort data by the From-To bus to use this index to reorder both data and results
+    # A stable terminal ordering keeps matching branch rows aligned across cases.
     sorted_idx = np.lexsort((ppc["branch"][:, 1], ppc["branch"][:, 0]))  # Sorted order
 
     # TODO: Expand to other asset-types beyond Bus, Branch, Load and Gen

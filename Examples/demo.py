@@ -1,5 +1,5 @@
 # ##########################################################################################
-# A collection of examples to demonstrate the features of the engine using various scenarios
+# A collection of standalone examples to demonstrate the features of the engine using various scenarios
 # ##########################################################################################
 
 import Examples.examples as examples
@@ -50,15 +50,15 @@ import Examples.examples as examples
 # # Just a few mismatches: 5% of loads scaled by 5%
 # examples.Bus118Example.concentrated_mismatch()
 
-# # Some loads scaled down, others scaled up: 50% loads scaled up by 10%, remaining scaled down by 10%.
-# examples.Bus118Example.directional_pattern()
+# Some loads scaled down, others scaled up: 50% loads scaled up by 10%, remaining scaled down by 10%.
+examples.Bus118Example.directional_pattern()
 
 # -----------------------------------------------------
 # 4. Demonstrate Parallel processing
 # -----------------------------------------------------
-# examples.case1354pegase.as_is()
-examples.case2869pegase.as_is()
-# Parallel process time diff: Check on a 9241 bus system
+# NOT IMPLEMENTED!!
+# examples.case2869pegase.as_is()
+# Parallel process time diff: Check on a 2869 bus system
 
 
-print("That's all folks")
+print("That's all folks!")

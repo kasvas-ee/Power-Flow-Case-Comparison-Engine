@@ -1,3 +1,5 @@
+"""Render the model-comparison summary for the engine report."""
+
 from src.comparison.result_structures import ActionResult
 from src.reporting.metadata_report_adapter import metadata_groups
 from src.reporting.formatting import (

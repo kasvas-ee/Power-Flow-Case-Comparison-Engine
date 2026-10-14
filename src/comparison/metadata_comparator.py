@@ -34,13 +34,16 @@ class SafeFormula:
     }
 
     def evaluate(self, expression: str, values: Mapping[str, Any]) -> Any:
+        """Parse and evaluate a supported formula against named input arrays."""
         try:
+            # The formula is parsed as an AST and evaluated by the whitelist below; arbitrary eval is avoided.
             tree = ast.parse(expression, mode="eval")
         except SyntaxError as exc:
             raise FormulaError(f"Invalid formula {expression!r}: {exc.msg}") from exc
         return self._node(tree.body, values)
 
     def _node(self, node: ast.AST, values: Mapping[str, Any]) -> Any:
+        """Evaluate one permitted syntax-tree node using whitelisted operators and functions."""
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return node.value
         if isinstance(node, ast.Name):
@@ -69,6 +72,7 @@ class SafeFormula:
 
 
 def _delta(a, b, comparison):
+    """Calculate an absolute difference using the configured numerical or angular convention."""
     if comparison == "angle":
         return np.abs(((a - b + 180.0) % 360.0) - 180.0)
     if comparison == "absolute":
@@ -268,6 +272,7 @@ def compare_arrays(definition, values_a, values_b, asset_ids = None):
                     "unit": definition.unit, "status": "NOT PERFORMED",
                     "reason": "Values are not numeric", "case_a": a, "case_b": b,
                     "delta": None, "statistics": {}}
+        # Only pairs with finite numeric values contribute to numeric mismatch statistics.
         valid = np.isfinite(af) & np.isfinite(bf)
         delta = _delta(af, bf, definition.comparison)
         mismatch = valid & (delta > definition.tolerance)
@@ -338,6 +343,7 @@ def compare_scope_asset(definitions, table_a, table_b, asset_ids):
 
 
 def group_definitions(definitions):
+    """Group metric definitions by the source and asset needed for efficient extraction."""
     groups = {}
     for definition in definitions:
         groups.setdefault((definition.scope, definition.asset_name), []).append(definition)

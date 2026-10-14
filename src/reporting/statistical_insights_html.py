@@ -25,10 +25,12 @@ def _safe(value: Any) -> str:
         if not math.isfinite(value):
             return "—"
         return f"{value:,.6g}"
+    # Escape text before embedding it in HTML to prevent values from being interpreted as markup.
     return html.escape(str(value))
 
 
 def _percent(value: Any) -> str:
+    """Format a finite numeric percentage or show an unavailable marker."""
     try:
         number = float(value)
         return f"{number:.2f}%" if math.isfinite(number) else "—"
@@ -37,10 +39,12 @@ def _percent(value: Any) -> str:
 
 
 def _unwrap_comparison(comparison: Any) -> Any:
+    """Unwrap a comparison result container to obtain its payload."""
     return getattr(comparison, "result", comparison)
 
 
 def _items(comparison: Any) -> list[dict]:
+    """Extract the list of comparison items from a report result."""
     if comparison is None:
         return []
     result = _unwrap_comparison(comparison)
@@ -48,15 +52,18 @@ def _items(comparison: Any) -> list[dict]:
 
 
 def _get_stats(item: dict) -> dict:
+    """Return the statistics dictionary associated with a comparison item."""
     stats = item.get("statistics")
     return stats if isinstance(stats, dict) else {}
 
 
 def _metric_name(item: dict) -> str:
+    """Select a display label for a metric from its metadata."""
     return str(item.get("display_name") or item.get("parameter_name") or item.get("parameter_id") or "Unknown metric")
 
 
 def _asset_name(item: dict) -> str:
+    """Select a display label for the asset type associated with a metric."""
     return str(item.get("asset_name") or "asset")
 
 
@@ -216,6 +223,7 @@ def _render_asset_groups(
 
 
 def _asset_count_label(stats: dict) -> str:
+    """Format affected-asset and total-asset counts with the available percentage."""
     affected = stats.get("affected_asset_count")
     total = stats.get("asset_count")
     pct = stats.get("affected_asset_percent")
@@ -226,10 +234,12 @@ def _asset_count_label(stats: dict) -> str:
 
 
 def _summary_rows(item: dict) -> list[tuple[str, Any]]:
+    """Build the statistics rows displayed for one metric in the HTML report."""
     s = _get_stats(item)
     unit = str(item.get("unit") or "")
 
     def with_unit(key: str) -> str:
+        """Format a statistic together with the metric unit when the value is available."""
         return f"{_safe(s.get(key))} {html.escape(unit)}".strip() if s.get(key) is not None else "—"
 
     rows = [
@@ -258,6 +268,7 @@ def _summary_rows(item: dict) -> list[tuple[str, Any]]:
 
 
 def with_unit_value(value: Any, unit: str) -> str:
+    """Format a value and its unit for display, or show an unavailable marker."""
     return f"{_safe(value)} {html.escape(unit)}".strip() if value is not None else "—"
 
 
@@ -299,6 +310,7 @@ def _largest_differences(item: dict, limit: int = 5) -> list[tuple[str, str]]:
 
 
 def _direction_rows(item: dict) -> list[tuple[str, Any]]:
+    """Build summary rows for positive and negative signed-delta proportions."""
     s = _get_stats(item)
     positive = s.get("positive_delta_percent")
     negative = s.get("negative_delta_percent")
@@ -311,6 +323,7 @@ def _direction_rows(item: dict) -> list[tuple[str, Any]]:
 
 
 def _findings_by_metric(findings):
+    """Group generated findings by the metric they describe."""
     model_by_metric: dict[str, list[dict]] = {}
     flow_by_metric: dict[str, list[dict]] = {}
     overall = []
@@ -332,6 +345,7 @@ def _findings_by_metric(findings):
 
 
 def _category_label(category: Any) -> tuple[str, str]:
+    """Convert an internal finding category to its display label."""
     category = str(category or "general")
     labels = {
         "isolated_mismatches": ("Concentrated mismatches", "mid"),
@@ -353,6 +367,7 @@ def _category_label(category: Any) -> tuple[str, str]:
 
 
 def _metric_card(item: dict, findings: list[dict], index: int) -> str:
+    """Render the metric details, statistics, and findings as an HTML card."""
     name = _metric_name(item)
     s = _get_stats(item)
     count = s.get("comparable_count", 0) or 0
@@ -398,6 +413,7 @@ def _metric_card(item: dict, findings: list[dict], index: int) -> str:
 
 
 def _overall_cards(items: list[dict], label: str) -> str:
+    """Render the headline overview cards for the report."""
     comparable = sum(int(_get_stats(i).get("comparable_count", 0) or 0) for i in items)
     mismatches = sum(int(_get_stats(i).get("mismatch_count", 0) or 0) for i in items)
     rate = 100.0 * mismatches / comparable if comparable else 0.0
@@ -407,6 +423,7 @@ def _overall_cards(items: list[dict], label: str) -> str:
 
 
 def _legend_html() -> str:
+    """Render the explanation of status labels and report statistics."""
     entries = [
         ("Extreme outlier pattern", "The maximum is much larger than P95 (in this engine, often at least 3× P95). Example: P95 = 2 units and max = 10 units. The largest difference may be concentrated in a few values; inspect the top assets and verify source values/units."),
         ("Concentrated mismatches", "A small share of compared values mismatch (the generator classifies ≤10% as isolated). Example: 10 mismatches out of 411 = 2.43%. Check the specific affected assets first."),
@@ -425,6 +442,7 @@ def _legend_html() -> str:
 
 
 def _styles() -> str:
+    """Return the embedded CSS used to style the self-contained HTML report."""
     return r"""
 :root{--ink:#182230;--muted:#64748b;--line:#e2e8f0;--canvas:#f4f7fb;--blue:#2563eb;--blue-soft:#eff6ff;--red:#b42318;--red-soft:#fef3f2;--amber:#92400e;--amber-soft:#fffaeb;--green:#166534;--green-soft:#f0fdf4}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.55 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.hero{background:linear-gradient(120deg,#10283f,#1e4970);color:white;padding:34px max(22px,calc((100vw - 1180px)/2))}.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:11px;font-weight:800;color:#b9d8f5}h1{font-size:clamp(28px,4vw,40px);line-height:1.12;margin:8px 0;letter-spacing:-.035em}.hero p{margin:0;color:#e2edf8;max-width:800px}.layout{max-width:1180px;margin:24px auto 60px;padding:0 20px;display:grid;grid-template-columns:205px minmax(0,1fr);gap:22px;align-items:start}nav{position:sticky;top:18px;background:white;border:1px solid var(--line);border-radius:14px;padding:15px}nav h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 9px}nav a{display:block;padding:8px;border-radius:8px;color:#334155;text-decoration:none;font-size:13px}nav a:hover{background:var(--blue-soft)}main{min-width:0}.section{margin-bottom:28px;scroll-margin-top:20px}.section-heading{margin-bottom:13px}.section-heading h2{font-size:23px;letter-spacing:-.025em;margin:0}.section-heading p,.muted{color:var(--muted);font-size:13px;margin:3px 0 0}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card,.metric,.panel{background:white;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 7px #0f172a08}.card{padding:17px}.label{color:var(--muted);font-size:12px;font-weight:650}.value{font-size:28px;font-weight:800;letter-spacing:-.04em;margin:4px 0}.sub{color:var(--muted);font-size:12px;margin:3px 0}.callout{margin-top:14px;padding:16px 18px;border-radius:12px;background:white;border:1px solid var(--line);border-left:4px solid var(--blue)}.callout p{margin:0;color:#475569}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 12px}input{flex:1;min-width:180px;border:1px solid #cbd5e1;border-radius:9px;padding:10px 12px;font:inherit}button{cursor:pointer;border:1px solid #cbd5e1;background:white;border-radius:9px;padding:9px 12px;color:#334155;font-weight:650}.metric{margin-bottom:13px;overflow:hidden}.metric summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px}.metric summary::-webkit-details-marker{display:none}.metric summary:after{content:"＋";font-size:20px;color:var(--muted)}.metric[open] summary:after{content:"−"}.metric-title{font-size:16px;font-weight:780}.metric-subtitle{color:var(--muted);font-size:12px;margin-top:2px}.badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.badge{display:inline-block;font-size:11px;font-weight:750;border-radius:999px;padding:4px 8px;white-space:nowrap;margin:1px}.badge.high{color:var(--red);background:var(--red-soft)}.badge.mid{color:var(--amber);background:var(--amber-soft)}.badge.low{color:var(--green);background:var(--green-soft)}.badge.info{color:#1e40af;background:var(--blue-soft)}.metric-body{padding:0 18px 18px;border-top:1px solid #edf1f5}.metric-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:15px}h3{margin:0 0 9px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#475569}table{border-collapse:collapse;width:100%;font-size:13px}th{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#f8fafc}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #edf1f5;vertical-align:top}td:last-child{text-align:right;font-variant-numeric:tabular-nums}tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}.table-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto}.stats th{width:58%;text-transform:none;letter-spacing:0;font-size:12px;font-weight:550;background:white}.stats td{font-weight:650;color:#172b42}.finding-list{margin-top:18px;padding:14px 15px;background:#f8fafc;border-radius:10px}.finding-list ul{margin:0;padding-left:20px}.finding-list li{margin:10px 0;color:#475569}.legend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.legend-item{background:white;border:1px solid var(--line);border-radius:12px;padding:15px}.legend-item h3{color:var(--ink);margin-bottom:5px}.legend-item p{margin:0;color:#475569;font-size:13px}.footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-size:12px}@media(max-width:850px){.layout{grid-template-columns:1fr}nav{position:static}nav div{display:grid;grid-template-columns:repeat(2,1fr)}.cards,.metric-grid,.legend-grid{grid-template-columns:1fr}}@media print{body{background:white}.hero{padding:22px;print-color-adjust:exact}.layout{display:block;max-width:none;margin:12px 0;padding:0}nav,.toolbar,button{display:none!important}.metric{break-inside:avoid;box-shadow:none}.metric:not([open]) .metric-body{display:block}.metric summary:after{display:none}.cards{grid-template-columns:repeat(2,1fr)}.legend-grid{grid-template-columns:repeat(2,1fr)}a{color:inherit}}
@@ -475,6 +493,7 @@ def generate_statistical_insights_html(report: Any, output_path: str | Path) -> 
 
     # Findings carry parameter_name; match them against the metric display/name.
     def relevant(item: dict) -> list[dict]:
+        """Determine whether a finding references the metric represented by the current card."""
         names = {
             _metric_name(item).casefold(),
             str(item.get("parameter_name") or "").casefold(),

@@ -51,6 +51,7 @@ _ASSET_SHEET = {
 
 
 def _metadata_entries(report: Any, scope: str) -> list[dict[str, Any]]:
+    """Retrieve metadata comparison records for the requested comparison scope."""
     if scope == "model":
         owner = getattr(report, "model_comparison", None)
         # In the comparison pipeline, model_comparison is an ActionResult;
@@ -68,6 +69,7 @@ def _ybus_result(report: Any) -> Any:
 
 
 def _ybus_matches(report: Any) -> bool:
+    """Return whether the report records a successful Ybus comparison."""
     result = _ybus_result(report)
     return bool(getattr(result, "is_match", False))
 
@@ -83,6 +85,7 @@ def _is_skipped_bus_branch_model(entry: dict[str, Any], report: Any) -> bool:
 
 
 def _scalar(value: Any) -> Any:
+    """Convert NumPy scalar or array values into ordinary Python values."""
     if isinstance(value, np.generic):
         return value.item()
     if isinstance(value, np.ndarray):
@@ -91,6 +94,7 @@ def _scalar(value: Any) -> Any:
 
 
 def _equal(a: Any, b: Any) -> bool:
+    """Compare two values safely, including missing values and array-like values."""
     try:
         if pd.isna(a) and pd.isna(b):
             return True
@@ -104,6 +108,7 @@ def _equal(a: Any, b: Any) -> bool:
 
 
 def _as_array(value: Any) -> np.ndarray | None:
+    """Normalize a value to a flattened NumPy array or return no array when invalid."""
     if value is None:
         return None
     try:
@@ -113,6 +118,7 @@ def _as_array(value: Any) -> np.ndarray | None:
 
 
 def _entry_ids(entry: dict[str, Any], length: int) -> np.ndarray:
+    """Return asset identifiers aligned to a comparison entry, with positional fallbacks."""
     ids = _as_array(entry.get("asset_ids"))
     if ids is None or len(ids) != length:
         return np.arange(length, dtype=object)
@@ -173,6 +179,7 @@ def _entry_mismatch_masks(entry: dict[str, Any], length: int) -> tuple[np.ndarra
 
 
 def _number_or_none(value: Any) -> float | None:
+    """Convert a value to a finite float or return no value."""
     try:
         number = float(value)
         return number if np.isfinite(number) else None
@@ -259,6 +266,7 @@ def _asset_frames(report: Any) -> dict[str, pd.DataFrame]:
 
 
 def _mismatch_details(report: Any) -> pd.DataFrame:
+    """Collect asset-level mismatch details from existing comparison outputs."""
     rows: list[dict[str, Any]] = []
     entries = _metadata_entries(report, "model") + _metadata_entries(report, "state")
     for entry in entries:
@@ -297,11 +305,13 @@ def _mismatch_details(report: Any) -> pd.DataFrame:
 
 
 def _ybus_summary(report: Any) -> pd.DataFrame:
+    """Build the Ybus summary table for the side-by-side workbook."""
     result = _ybus_result(report)
     if result is None:
         return pd.DataFrame([{"Check": "Ybus comparison", "Result": "NOT PERFORMED", "Details": "No Ybus comparison result available"}])
 
     def fmt_shape(value: Any) -> Any:
+        """Format a matrix shape for display in the workbook."""
         if value is None:
             return None
         try:
@@ -320,6 +330,7 @@ def _ybus_summary(report: Any) -> pd.DataFrame:
 
 
 def _system_summary(report: Any) -> pd.DataFrame:
+    """Build the workbook summary from the existing system-level result."""
     rows = [
         {"Metric": "Ybus match", "Case A": None, "Case B": None, "Delta": None,
          "Status": "MATCH" if _ybus_matches(report) else "MISMATCH"},
@@ -346,6 +357,7 @@ def _system_summary(report: Any) -> pd.DataFrame:
 
 
 def _format_sheet(writer: pd.ExcelWriter, name: str, frame: pd.DataFrame) -> None:
+    """Apply presentation formatting to a generated Excel worksheet."""
     frame.to_excel(writer, sheet_name=name, index=False)
     ws = writer.sheets[name]
     ws.freeze_panes = "A2"

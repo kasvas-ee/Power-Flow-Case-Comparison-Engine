@@ -1,3 +1,5 @@
+"""Shared helpers for generating paired power-system cases and example-specific configuration files."""
+
 import yaml
 from pathlib import Path
 import pandapower as pp
@@ -57,6 +59,7 @@ CASES = {
 
 
 def create_case(example_id: str, library):
+    """Instantiate a named example case using the requested network library."""
     try:
         return CASES[example_id][library]()
     except KeyError:
@@ -69,6 +72,7 @@ def create_case(example_id: str, library):
 
 def generate_pandapower_case(filename, example_name, **options):
     # Panda Power JSON format
+    """Generate and serialize a pandapower case with the requested scenario changes."""
     net = create_case(example_name, "pandapower")
 
     # Modify network (if required)
@@ -145,7 +149,7 @@ def generate_pandapower_case(filename, example_name, **options):
 
 
 def generate_matpower_case(filename, example_name, m_file_path=None):
-    # MATPOWER .MAT format
+    """Generate and save the MATPOWER representation of the selected example case."""
     if m_file_path:
         import pandapower.converter as cv
         net = cv.from_mpc(m_file_path)
@@ -163,6 +167,7 @@ def generate_matpower_case(filename, example_name, m_file_path=None):
 
 
 def create_inputs(input_path, example_name, m_file_path=None, **options):
+    """Create the paired Case A and Case B input files for an example."""
     Path(ROOT / input_path).mkdir(parents=True, exist_ok=True)
     generate_matpower_case(str(ROOT / input_path) + "/case_A", example_name, m_file_path)
     generate_pandapower_case(str(ROOT / input_path) + "/case_B", example_name, **options)
@@ -170,6 +175,7 @@ def create_inputs(input_path, example_name, m_file_path=None, **options):
 
 
 def create_config(config_file, input_dir, output_dir):
+    """Write an example-specific configuration based on the shared settings."""
     Path(ROOT / output_dir).mkdir(parents=True, exist_ok=True)
     with open( ROOT / "config/settings.yaml", "r") as f:
         ref_config_dict = yaml.safe_load(f)

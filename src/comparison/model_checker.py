@@ -1,5 +1,6 @@
 # #####################################################################
-# Check whether the network models are identical or comparable
+# Compare canonical network models using asset metadata, PPC data, and Ybus structure
+# to check whether the network models are identical or comparable
 # #####################################################################
 
 import numpy as np
@@ -59,6 +60,7 @@ def compute_ybus_matric(ppc):
 
         required_columns = 26
 
+        # Pad a local branch-array copy only when makeYbus needs columns absent from the input PPC.
         if branch.shape[1] < required_columns:
             branch = np.pad(
                 branch,
@@ -268,6 +270,7 @@ def get_asset_counts(ppc):
     """Return asset counts without iterating through individual assets."""
 
     def table_count(table_name, non_zero_column_ids=[]):
+        """Return the row count of an available asset table, or no count when unavailable."""
         table = ppc.get(table_name)
         if table is None:
             return 0
